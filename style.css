@@ -105,6 +105,17 @@ body {
 .exam__name { font-weight: 600; }
 .exam__status { margin-left: auto; color: var(--muted); font-size: .9rem; }
 
+/* Food obsessions */
+.foods { margin-bottom: 32px; }
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--surface-hi);
+  padding: 7px 13px; border-radius: 999px; font-size: .9rem;
+  transition: border-color .15s ease, background .15s ease;
+}
+.chip:hover { background: var(--surface-hi); border-color: var(--accent); }
+
 /* Photos */
 .photos { margin-bottom: 32px; }
 .gallery {
