@@ -195,11 +195,26 @@ a { color: inherit; }
 }
 .sheet__frame {
   display: block;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 1 / 1;
   border-radius: 3px;
   box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.65);
 }
-.sheet__frame:focus-visible { outline: 2px solid var(--plum); outline-offset: 3px; }
+.sheet__frame:focus-visible, .met__frame:focus-visible { outline: 2px solid var(--plum); outline-offset: 3px; }
+
+/* "Met Hiromi" feature in the Music block */
+.met { margin: 1.6rem 0 0; }
+.met__frame {
+  display: block;
+  aspect-ratio: 4 / 3;
+  border-radius: 4px;
+  box-shadow: 0 16px 34px -16px rgba(0, 0, 0, 0.7);
+}
+.met figcaption {
+  margin-top: 0.65rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
 
 /* Duotone photos — a true two-tone (whites map into plum, not washed) that
    blooms to full color on hover/focus (the signature interaction). */

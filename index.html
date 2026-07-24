@@ -75,6 +75,11 @@
         <li>Anomalie</li>
         <li>insaneintherain</li>
       </ul>
+      <figure class="met">
+        <a class="shot met__frame" href="./assets/music-hiromi.jpg">
+          <img src="./assets/music-hiromi.jpg" alt="Kyuwon with pianist Hiromi Uehara at a signing table" loading="lazy"></a>
+        <figcaption>Met Hiromi Uehara — a real highlight.</figcaption>
+      </figure>
     </section>
 
     <!-- FOOD -->
@@ -103,6 +108,18 @@
           <img src="./assets/photo2.jpg" alt="Kyuwon at a convex street mirror holding a film camera" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo3.jpg">
           <img src="./assets/photo3.jpg" alt="Kyuwon at a science museum brain exhibit" loading="lazy"></a></li>
+        <li><a class="shot sheet__frame" href="./assets/photo4.jpg">
+          <img src="./assets/photo4.jpg" alt="Kyuwon and friends out at night in Dallas" loading="lazy"></a></li>
+        <li><a class="shot sheet__frame" href="./assets/photo5.jpg">
+          <img src="./assets/photo5.jpg" alt="Kyuwon with a big group of friends at a house party" loading="lazy"></a></li>
+        <li><a class="shot sheet__frame" href="./assets/photo6.jpg">
+          <img src="./assets/photo6.jpg" alt="Kyuwon and friends at a winter North Pole photo hut" loading="lazy"></a></li>
+        <li><a class="shot sheet__frame" href="./assets/photo7.jpg">
+          <img src="./assets/photo7.jpg" alt="Kyuwon's friends at a Thai dinner" loading="lazy"></a></li>
+        <li><a class="shot sheet__frame" href="./assets/photo8.jpg">
+          <img src="./assets/photo8.jpg" alt="Kyuwon and friends in Halloween costumes" loading="lazy"></a></li>
+        <li><a class="shot sheet__frame" href="./assets/photo9.jpg">
+          <img src="./assets/photo9.jpg" alt="Kyuwon and friends hanging out on a couch" loading="lazy"></a></li>
       </ul>
     </section>
 
@@ -146,7 +163,7 @@
       lb.hidden = true; lbImg.src = "";
       if (lastFocus) lastFocus.focus();
     }
-    document.querySelectorAll(".sheet__frame").forEach((a) => {
+    document.querySelectorAll(".sheet__frame, .met__frame").forEach((a) => {
       a.addEventListener("click", (e) => {
         e.preventDefault();
         openLB(a.getAttribute("href"), a.querySelector("img").alt);
