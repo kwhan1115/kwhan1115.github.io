@@ -1,4 +1,4 @@
-# kwhan.github.io
+# kwhan1115.github.io
 
 My personal hub — single static page, dark Gengar theme, served by GitHub Pages.
 
