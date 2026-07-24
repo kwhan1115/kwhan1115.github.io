@@ -2,12 +2,14 @@
 // Imported by index.html (as a module) to inject the tracker, and by
 // exams.test.js under `node --test`. Summary always derives from the data.
 
-// <!-- SWAP --> Replace with real exams and statuses.
+// CAS (Casualty Actuarial Society) exam track.
 export const EXAMS = [
-  { name: "Exam P",   status: "passed" },
-  { name: "Exam FM",  status: "passed" },
-  { name: "Exam FAM", status: "scheduled", note: "Oct 2026" },
-  { name: "Exam SRM", status: "notStarted" },
+  { name: "Exam 1 · Probability",    status: "passed" },
+  { name: "Exam 2 · Financial Math", status: "passed" },
+  { name: "MAS-I",                   status: "passed" },
+  { name: "MAS-II",                  status: "scheduled", note: "Up next" },
+  { name: "Exam 5",                  status: "notStarted" },
+  { name: "Exam 6",                  status: "notStarted" },
 ];
 
 const LABEL = { passed: "Passed", scheduled: "Scheduled", notStarted: "Not started" };
