@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kyuwon Han</title>
   <meta name="description" content="Kyuwon Han — actuary in training and Android developer.">
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -54,5 +55,11 @@
     </footer>
 
   </main>
+
+  <script type="module">
+    import { EXAMS, renderExams } from "./exams.js";
+    document.getElementById("exam-tracker").innerHTML = renderExams(EXAMS);
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
