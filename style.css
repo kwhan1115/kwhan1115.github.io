@@ -26,6 +26,7 @@ body {
   font-family: var(--sans);
   font-size: 17px;
   line-height: 1.6;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -44,7 +45,11 @@ body::before {
   opacity: 0.05;
   mix-blend-mode: soft-light;
 }
-@media (prefers-reduced-motion: reduce) { body::before { opacity: 0.035; } }
+@media (prefers-reduced-motion: reduce) {
+  body::before { opacity: 0.035; }
+  .vinyl__disc, .eq i { animation: none !important; }
+  .vinyl { transform: none !important; }
+}
 
 ::selection { background: var(--plum); color: var(--ground); }
 
@@ -73,18 +78,71 @@ a { color: inherit; }
 .cover__name span { display: block; }
 .cover__name span:last-child { color: var(--plum); }
 
+.deck { position: relative; width: min(220px, 62%); }
 .cover__portrait {
-  margin: 0;
-  width: min(220px, 62%);
+  position: relative; z-index: 2;
+  margin: 0; width: 100%;
   aspect-ratio: 4 / 5;
   border-radius: 5px;
-  box-shadow: 0 20px 44px -16px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 20px 44px -16px rgba(0, 0, 0, 0.75);
 }
+
+/* Turntable: a vinyl tucked behind the cover, spinning, that slides out of
+   the sleeve on hover/focus. */
+.vinyl {
+  position: absolute; z-index: 1;
+  top: 9%; left: 46%; width: 82%; aspect-ratio: 1;
+  transform: translateX(0);
+  transition: transform .55s cubic-bezier(.16, 1, .3, 1);
+}
+.deck:hover .vinyl, .deck:focus-within .vinyl { transform: translateX(27%); }
+.vinyl__disc {
+  position: relative; width: 100%; height: 100%; border-radius: 50%;
+  background: repeating-radial-gradient(circle at 50% 50%, #0b0711 0 1.3px, #1b1327 1.3px 3.2px);
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  display: grid; place-items: center;
+  animation: spin 5.5s linear infinite;
+  animation-play-state: paused;
+}
+.vinyl__disc::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 210deg, transparent 0 42%, rgba(255, 255, 255, .07) 50%, transparent 58% 100%);
+}
+.vinyl__label {
+  position: relative; z-index: 1;
+  width: 42%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 40% 34%, var(--plum) 0%, var(--plum-deep) 100%);
+  color: var(--ground);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12em;
+  text-align: center;
+}
+.vinyl__label::after {
+  content: ""; position: absolute; width: 9%; aspect-ratio: 1; border-radius: 50%; background: var(--ground);
+}
+.vinyl__title { font-family: var(--display); font-size: clamp(.42rem, 2.5vw, .6rem); line-height: .92; text-transform: uppercase; }
+.vinyl__side { font-family: var(--mono); font-size: clamp(.3rem, 1.7vw, .42rem); opacity: .82; }
 
 @media (min-width: 560px) {
   .cover { grid-template-columns: 1fr auto; align-items: end; column-gap: 1.5rem; }
-  .cover__portrait { width: 200px; align-self: end; }
+  .deck { width: 200px; align-self: end; }
 }
+
+/* Equalizer next to the Music header — it's playing. */
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: .58em; margin-left: .55rem; }
+.eq i {
+  width: 3px; height: 100%; background: var(--plum);
+  transform-origin: bottom; transform: scaleY(.3);
+  animation: eq .9s ease-in-out infinite; animation-play-state: paused;
+}
+.eq i:nth-child(1) { animation-delay: -.2s; }
+.eq i:nth-child(2) { animation-delay: -.5s; animation-duration: .7s; }
+.eq i:nth-child(3) { animation-delay: -.1s; animation-duration: 1.1s; }
+.eq i:nth-child(4) { animation-delay: -.35s; animation-duration: .8s; }
+
+[data-loop].is-vis .vinyl__disc, .eq.is-vis i { animation-play-state: running; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes eq { 0%, 100% { transform: scaleY(.28); } 50% { transform: scaleY(1); } }
 
 /* ---------- Blocks + marquee headers ---------- */
 .block {

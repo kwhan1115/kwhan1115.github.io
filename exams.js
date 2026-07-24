@@ -76,7 +76,11 @@ export function renderExams(exams) {
 
   return `<div class="ledger">` +
       `<div class="ledger__masthead">` +
-        `<span class="ledger__figure">${pad2(passed)}<span class="ledger__slash">/</span>${pad2(total)}</span>` +
+        `<span class="ledger__figure">` +
+          `<span class="ledger__num" data-to="${passed}">${pad2(passed)}</span>` +
+          `<span class="ledger__slash">/</span>` +
+          `<span class="ledger__num" data-to="${total}">${pad2(total)}</span>` +
+        `</span>` +
         `<span class="ledger__caption">exams cleared · CAS track</span>` +
       `</div>` +
       tiersHTML +
