@@ -43,6 +43,19 @@
         working through the CAS exam track.</p>
     </section>
 
+    <!-- Photos -->
+    <section class="photos" aria-labelledby="photos-h">
+      <h2 id="photos-h" class="section-title">Photos</h2>
+      <ul class="gallery">
+        <li><a class="gallery__item" href="./assets/photo1.jpg">
+          <img src="./assets/photo1.jpg" alt="Kyuwon in a Gengar hoodie" loading="lazy"></a></li>
+        <li><a class="gallery__item" href="./assets/photo2.jpg">
+          <img src="./assets/photo2.jpg" alt="Kyuwon at a convex street mirror holding a film camera" loading="lazy"></a></li>
+        <li><a class="gallery__item" href="./assets/photo3.jpg">
+          <img src="./assets/photo3.jpg" alt="Kyuwon at a science museum brain exhibit" loading="lazy"></a></li>
+      </ul>
+    </section>
+
     <!-- Actuarial exam tracker (populated by module in Task 4) -->
     <section class="exams" aria-labelledby="exams-h">
       <h2 id="exams-h" class="section-title">Actuarial exams</h2>
@@ -56,10 +69,44 @@
 
   </main>
 
+  <!-- Lightbox overlay (shown by JS; thumbnails link to the full image without it) -->
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lightbox__close" type="button" aria-label="Close">✕</button>
+    <img class="lightbox__img" id="lightbox-img" alt="">
+  </div>
+
   <script type="module">
     import { EXAMS, renderExams } from "./exams.js";
     document.getElementById("exam-tracker").innerHTML = renderExams(EXAMS);
     document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Lightbox: intercept gallery clicks. Without JS, thumbnails just open the image.
+    const lb = document.getElementById("lightbox");
+    const lbImg = document.getElementById("lightbox-img");
+    const closeBtn = lb.querySelector(".lightbox__close");
+    let lastFocus = null;
+    function openLB(href, alt) {
+      lastFocus = document.activeElement;
+      lbImg.src = href; lbImg.alt = alt;
+      lb.hidden = false;
+      closeBtn.focus();
+    }
+    function closeLB() {
+      lb.hidden = true; lbImg.src = "";
+      if (lastFocus) lastFocus.focus();
+    }
+    document.querySelectorAll(".gallery__item").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        openLB(a.getAttribute("href"), a.querySelector("img").alt);
+      });
+    });
+    lb.addEventListener("click", (e) => {
+      if (e.target === lb || e.target === closeBtn) closeLB();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !lb.hidden) closeLB();
+    });
   </script>
 </body>
 </html>

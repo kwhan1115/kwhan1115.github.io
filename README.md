@@ -7,7 +7,8 @@ My personal hub — single static page, dark Gengar theme, served by GitHub Page
 - Text/links: edit `index.html`.
 - Exam list: edit the `EXAMS` array in `exams.js` (summary auto-updates).
 - Theme colors: edit the `:root` tokens in `style.css`.
-- Avatar: replace `assets/avatar.svg` (keep it square).
+- Avatar: replace `assets/avatar.jpg` (square; shown in a circle).
+- Photos: drop `assets/photoN.jpg` and add a matching `<li>` in the `.gallery` list in `index.html`. Thumbnails are square-cropped by CSS; the lightbox shows the full image.
 
 ## Develop locally
 
