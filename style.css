@@ -34,6 +34,8 @@ body {
   border: 3px solid var(--accent);
   box-shadow: 0 0 24px rgba(199, 125, 255, 0.35);
   background: var(--surface);
+  object-fit: cover;
+  object-position: 50% 42%;
 }
 .intro__name { margin: 16px 0 4px; font-size: 1.9rem; color: var(--accent-bright); }
 .intro__blurb { margin: 0; color: var(--muted); }
