@@ -147,11 +147,8 @@
 
   </main>
 
-  <!-- Desktop haunt: drifting spectral orbs + a pixel-ghost companion (decorative) -->
+  <!-- Desktop haunt: drifting spectral orbs (decorative) -->
   <div class="haunt" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <div class="ghost" aria-hidden="true" title="boo">
-    <img class="ghost__img" src="./assets/gengar.svg" alt="" width="118" height="109">
-  </div>
 
   <!-- Lightbox (JS-shown; thumbnails link to the full image without it) -->
   <div class="lightbox" id="lightbox" hidden>
@@ -190,20 +187,6 @@
     document.querySelectorAll("[data-loop]").forEach((el) => io.observe(el));
     const ledgerEl = document.querySelector(".ledger");
     if (ledgerEl) { ledgerEl.dataset.countup = "1"; io.observe(ledgerEl); }
-
-    // Poke the ghost: a hop + a little spectral puff.
-    const ghost = document.querySelector(".ghost");
-    if (ghost && !reduce) {
-      ghost.addEventListener("click", () => {
-        ghost.classList.remove("ghost--poke");
-        void ghost.offsetWidth;
-        ghost.classList.add("ghost--poke");
-        const puff = document.createElement("span");
-        puff.className = "puff";
-        ghost.appendChild(puff);
-        puff.addEventListener("animationend", () => puff.remove());
-      });
-    }
 
     // Lightbox: intercept photo clicks. Without JS, thumbnails just open the image.
     const lb = document.getElementById("lightbox");
