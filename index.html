@@ -4,111 +4,126 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kyuwon Han</title>
-  <meta name="description" content="Kyuwon Han — actuary in training and Android developer.">
+  <meta name="description" content="Kyuwon Han — an actuary on the CAS exam track, with a jazz-piano habit and too many favorites. Personal site.">
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;800&family=Cutive+Mono&display=swap">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <main class="card">
+<!--
+  DIRECTION — "Liner Notes" (brief-pinned by Kyuwon; no concept roll)
+  THESIS: A personal site as a jazz LP record sleeve. Refuses the dark rounded-card
+    link-in-bio it replaces.
+  OWN-WORLD: Deep aubergine ground, plum fields, one magenta-eye pop. Anton marquee
+    display, Archivo running text, Cutive Mono typed credits. Duotone photos. Hairlines,
+    not cards.
+  STORY: A friend taps the bio link at night, reads Kyuwon like sleeve copy — who he is,
+    where to find him, what he plays, what he eats, his exam record — and taps a link.
+  FIRST VIEWPORT: Giant Anton "KYUWON HAN" left, duotone Gengar-hoodie portrait right,
+    a catalog kicker above. No hero card.
+  FORM: Record sleeve; brief-pinned (beats the roll); signature = duotone photos that
+    bloom to color on hover.
+-->
+  <main class="sleeve">
 
-    <!-- Intro + photo -->
-    <header class="intro">
-      <img class="avatar" src="./assets/avatar.jpg" width="112" height="112"
-           alt="Kyuwon Han wearing a Gengar hoodie">
-      <h1 class="intro__name">Kyuwon Han</h1>
-      <p class="intro__blurb">Actuary in training</p>
+    <!-- COVER -->
+    <header class="cover">
+      <p class="cover__cat">Personal record — No.&nbsp;01 — kwhan1115</p>
+      <h1 class="cover__name"><span>Kyuwon</span><span>Han</span></h1>
+      <figure class="cover__portrait shot">
+        <img src="./assets/avatar.jpg" width="240" height="300" alt="Kyuwon Han in a Gengar hoodie">
+      </figure>
     </header>
 
-    <!-- Link buttons -->
-    <nav class="links" aria-label="My links">
-      <a class="link" href="https://github.com/kwhan1115">
-        <span class="link__icon" aria-hidden="true">⌨</span>
-        <span class="link__label">GitHub</span>
-      </a>
-      <a class="link" href="https://instagram.com/kwhan1115">
-        <span class="link__icon" aria-hidden="true">📷</span>
-        <span class="link__label">Instagram</span>
-      </a>
-      <a class="link" href="mailto:kwhan1115@gmail.com">
-        <span class="link__icon" aria-hidden="true">✉</span>
-        <span class="link__label">Email</span>
-      </a>
-    </nav>
-
-    <!-- Now / about -->
-    <section class="about" aria-labelledby="about-h">
-      <h2 id="about-h" class="section-title">About</h2>
-      <p>Hi friends! I'm Kyuwon, currently working as an actuary on the CAS exam
-        track. I like to play sports, mostly climbing and tennis, but I also enjoy
-        other sports at times like golf, badminton, swimming, running. I have a
-        pretty obsessive personality, so there are times where I kinda do the same
-        thing over and over again. Anyways, welcome to my little website!</p>
+    <!-- LINER NOTES (about) -->
+    <section class="block liner" aria-labelledby="about-h">
+      <h2 id="about-h" class="marquee">Liner notes</h2>
+      <p class="liner__note">Hi friends! I'm Kyuwon, currently working as an actuary on the CAS exam track. I like to play sports, mostly climbing and tennis, but I also enjoy other sports at times like golf, badminton, swimming, running. I have a pretty obsessive personality, so there are times where I kinda do the same thing over and over again. Anyways, welcome to my little website!</p>
     </section>
 
-    <!-- Music -->
-    <section class="music" aria-labelledby="music-h">
-      <h2 id="music-h" class="section-title">Music</h2>
-      <p>I play piano, percussion, a bit of drums, guitar, and bass.</p>
-      <p class="chips-label">Favorite musicians</p>
-      <ul class="chips">
-        <li class="chip">Hiromi Uehara</li>
-        <li class="chip">Erroll Garner</li>
-        <li class="chip">Bill Evans</li>
-        <li class="chip">Nikolai Kapustin</li>
-        <li class="chip">Anomalie</li>
-        <li class="chip">insaneintherain</li>
-      </ul>
-      <a class="btn-inline" href="https://open.spotify.com/user/kwhan1115">
-        <span class="btn-inline__icon" aria-hidden="true">▶</span> My Spotify
-      </a>
-    </section>
-
-    <!-- Food obsessions -->
-    <section class="foods" aria-labelledby="foods-h">
-      <h2 id="foods-h" class="section-title">Food obsessions</h2>
-      <ul class="chips">
-        <li class="chip">Chi Forest</li>
-        <li class="chip">Fruit Riot</li>
-        <li class="chip">Matcha Binch</li>
-        <li class="chip">Mike's Chicken</li>
-        <li class="chip">Mister O1's Extraordinary Pizza</li>
-        <li class="chip">Cruntin Crunchball Protein Shake</li>
-        <li class="chip">Costco Chicken Bake</li>
-        <li class="chip">Fresh Bowl's Mi Quang</li>
-        <li class="chip">Taco Bell Luxe Box</li>
+    <!-- FIND ME (links) -->
+    <section class="block" aria-labelledby="links-h">
+      <h2 id="links-h" class="marquee">Find me</h2>
+      <ul class="wires">
+        <li><a class="wire" href="https://github.com/kwhan1115">
+          <svg class="wire__mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.51 11.51 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          <span class="wire__label">GitHub</span><span class="wire__id">@kwhan1115</span></a></li>
+        <li><a class="wire" href="https://instagram.com/kwhan1115">
+          <svg class="wire__mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069M12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12s.014 3.668.072 4.948c.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24s3.668-.014 4.948-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0m0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324M12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8m6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881"/></svg>
+          <span class="wire__label">Instagram</span><span class="wire__id">@kwhan1115</span></a></li>
+        <li><a class="wire" href="https://open.spotify.com/user/kwhan1115">
+          <svg class="wire__mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0m5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02m1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6s.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2m.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3"/></svg>
+          <span class="wire__label">Spotify</span><span class="wire__id">user/kwhan1115</span></a></li>
+        <li><a class="wire" href="mailto:kwhan1115@gmail.com">
+          <svg class="wire__mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.25 5.25A2.25 2.25 0 0 1 4.5 3h15a2.25 2.25 0 0 1 2.25 2.25v.383l-9.75 5.777L2.25 5.633zm0 2.999V18.75A2.25 2.25 0 0 0 4.5 21h15a2.25 2.25 0 0 0 2.25-2.25V8.25l-9.365 5.548a.75.75 0 0 1-.77 0z"/></svg>
+          <span class="wire__label">Email</span><span class="wire__id">kwhan1115@gmail.com</span></a></li>
       </ul>
     </section>
 
-    <!-- Photos -->
-    <section class="photos" aria-labelledby="photos-h">
-      <h2 id="photos-h" class="section-title">Photos</h2>
-      <ul class="gallery">
-        <li><a class="gallery__item" href="./assets/photo1.jpg">
+    <!-- MUSIC -->
+    <section class="block" aria-labelledby="music-h">
+      <h2 id="music-h" class="marquee">Music</h2>
+      <p class="lead">I play piano, percussion, a bit of drums, guitar, and bass.</p>
+      <p class="credit-label">On heavy rotation</p>
+      <ul class="credits">
+        <li>Hiromi Uehara</li>
+        <li>Erroll Garner</li>
+        <li>Bill Evans</li>
+        <li>Nikolai Kapustin</li>
+        <li>Anomalie</li>
+        <li>insaneintherain</li>
+      </ul>
+    </section>
+
+    <!-- FOOD -->
+    <section class="block" aria-labelledby="food-h">
+      <h2 id="food-h" class="marquee">Food obsessions</h2>
+      <ul class="menu">
+        <li>Chi Forest</li>
+        <li>Fruit Riot</li>
+        <li>Matcha Binch</li>
+        <li>Mike's Chicken</li>
+        <li>Mister O1's Extraordinary Pizza</li>
+        <li>Cruntin Crunchball Protein Shake</li>
+        <li>Costco Chicken Bake</li>
+        <li>Fresh Bowl's Mi Quang</li>
+        <li>Taco Bell Luxe Box</li>
+      </ul>
+    </section>
+
+    <!-- PHOTOS: contact sheet -->
+    <section class="block" aria-labelledby="photos-h">
+      <h2 id="photos-h" class="marquee">Photos</h2>
+      <ul class="sheet">
+        <li><a class="shot sheet__frame" href="./assets/photo1.jpg">
           <img src="./assets/photo1.jpg" alt="Kyuwon in a Gengar hoodie" loading="lazy"></a></li>
-        <li><a class="gallery__item" href="./assets/photo2.jpg">
+        <li><a class="shot sheet__frame" href="./assets/photo2.jpg">
           <img src="./assets/photo2.jpg" alt="Kyuwon at a convex street mirror holding a film camera" loading="lazy"></a></li>
-        <li><a class="gallery__item" href="./assets/photo3.jpg">
+        <li><a class="shot sheet__frame" href="./assets/photo3.jpg">
           <img src="./assets/photo3.jpg" alt="Kyuwon at a science museum brain exhibit" loading="lazy"></a></li>
       </ul>
     </section>
 
-    <!-- Actuarial exam tracker (populated by module in Task 4) -->
-    <section class="exams" aria-labelledby="exams-h">
-      <h2 id="exams-h" class="section-title">Actuarial exams</h2>
+    <!-- EXAM RECORD -->
+    <section class="block" aria-labelledby="exams-h">
+      <h2 id="exams-h" class="marquee">Exam record</h2>
       <div id="exam-tracker"></div>
-      <noscript><p class="muted">Enable JavaScript to see exam progress.</p></noscript>
+      <noscript><p class="lead">Enable JavaScript to see the exam record.</p></noscript>
     </section>
 
-    <footer class="foot">
-      <p class="muted">© <span id="year">2026</span> Kyuwon Han</p>
+    <footer class="pressing">
+      <span>&copy; <span id="year">2026</span> Kyuwon Han</span>
+      <span class="pressing__mark">A kwhan1115 pressing · built with Claude</span>
     </footer>
 
   </main>
 
-  <!-- Lightbox overlay (shown by JS; thumbnails link to the full image without it) -->
+  <!-- Lightbox (JS-shown; thumbnails link to the full image without it) -->
   <div class="lightbox" id="lightbox" hidden>
-    <button class="lightbox__close" type="button" aria-label="Close">✕</button>
-    <img class="lightbox__img" id="lightbox-img" alt="">
+    <button class="lightbox__close" type="button" aria-label="Close">Close</button>
+    <img class="lightbox__img" id="lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
   </div>
 
   <script type="module">
@@ -116,7 +131,7 @@
     document.getElementById("exam-tracker").innerHTML = renderExams(EXAMS);
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // Lightbox: intercept gallery clicks. Without JS, thumbnails just open the image.
+    // Lightbox: intercept photo clicks. Without JS, thumbnails just open the image.
     const lb = document.getElementById("lightbox");
     const lbImg = document.getElementById("lightbox-img");
     const closeBtn = lb.querySelector(".lightbox__close");
@@ -131,7 +146,7 @@
       lb.hidden = true; lbImg.src = "";
       if (lastFocus) lastFocus.focus();
     }
-    document.querySelectorAll(".gallery__item").forEach((a) => {
+    document.querySelectorAll(".sheet__frame").forEach((a) => {
       a.addEventListener("click", (e) => {
         e.preventDefault();
         openLB(a.getAttribute("href"), a.querySelector("img").alt);

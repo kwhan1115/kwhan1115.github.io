@@ -1,10 +1,9 @@
-// Actuarial exam data + pure render helpers.
-// Imported by index.html (as a module) to inject the tracker, and by
-// exams.test.js under `node --test`. Summary + credential progress derive
-// from the data so nothing can drift.
+// Actuarial exam data + pure render helpers for the "Liner Notes" exam ledger.
+// Imported by index.html (as a module) and by exams.test.js under `node --test`.
+// Every figure (overall count + per-credential progress) derives from the data.
 
-// CAS (Casualty Actuarial Society) track. Credentials are cumulative
-// milestones on the ordered exam list: first 6 -> ACAS, all 9 -> FCAS.
+// CAS (Casualty Actuarial Society) track. Credentials are cumulative milestones
+// on the ordered list: first 6 -> ACAS, all 9 -> FCAS.
 export const EXAMS = [
   { name: "Exam 1 · Probability",    status: "passed",     tier: "ACAS" },
   { name: "Exam 2 · Financial Math", status: "passed",     tier: "ACAS" },
@@ -17,15 +16,13 @@ export const EXAMS = [
   { name: "Exam 9",                  status: "notStarted", tier: "FCAS" },
 ];
 
-// Credential metadata keyed by tier. `requires` = how many exams (from the
-// start of the list) that credential needs.
 const TIER_META = {
-  ACAS: { label: "Associate", sub: "ACAS", requires: 6 },
-  FCAS: { label: "Fellow",    sub: "FCAS", requires: 9 },
+  ACAS: { label: "Associate", abbr: "ACAS", requires: 6 },
+  FCAS: { label: "Fellow",    abbr: "FCAS", requires: 9 },
 };
 
 const LABEL = { passed: "Passed", scheduled: "Scheduled", notStarted: "Not started" };
-const ICON  = { passed: "✅", scheduled: "🟣", notStarted: "⚪" };
+const pad2 = (n) => String(n).padStart(2, "0");
 
 function escapeHTML(s) {
   return String(s)
@@ -46,22 +43,18 @@ export function credentialProgress(exams, requires) {
 
 export function examRowHTML(exam) {
   const status = ["passed", "scheduled", "notStarted"].includes(exam.status) ? exam.status : "notStarted";
-  const icon = ICON[status];
-  const label = LABEL[status];
-  const note = exam.note ? ` · ${escapeHTML(exam.note)}` : "";
-  return `<li class="exam exam--${status}">` +
-    `<span class="exam__icon" aria-hidden="true">${icon}</span>` +
-    `<span class="exam__name">${escapeHTML(exam.name)}</span>` +
-    `<span class="exam__status">${label}${note}</span>` +
+  const stat = status === "scheduled" && exam.note ? escapeHTML(exam.note) : LABEL[status];
+  return `<li class="rec rec--${status}">` +
+    `<span class="rec__mark" aria-hidden="true"></span>` +
+    `<span class="rec__name">${escapeHTML(exam.name)}</span>` +
+    `<span class="rec__stat">${stat}</span>` +
     `</li>`;
 }
 
 export function renderExams(exams) {
   const { passed, total } = computeSummary(exams);
-  const pct = total ? Math.round((passed / total) * 100) : 0;
 
-  // Group by tier, preserving first-appearance order. Untiered exams fall
-  // into a single headerless group (backward compatible).
+  // group by tier, preserving first-appearance order (untiered -> single group)
   const groups = [];
   for (const e of exams) {
     const key = e.tier ?? "";
@@ -70,21 +63,22 @@ export function renderExams(exams) {
     g.items.push(e);
   }
 
-  const groupsHTML = groups.map((g) => {
+  const tiersHTML = groups.map((g) => {
     const meta = TIER_META[g.key];
     const head = meta
-      ? `<div class="exam-tier__head">` +
-          `<span class="exam-tier__name">${meta.label} · <b>${meta.sub}</b></span>` +
-          `<span class="exam-tier__count">${credentialProgress(exams, meta.requires).passed} / ${meta.requires}</span>` +
+      ? `<div class="ledger__tierhead">` +
+          `<span class="ledger__cred">${meta.label} <span class="ledger__abbr">${meta.abbr}</span></span>` +
+          `<span class="ledger__prog">${pad2(credentialProgress(exams, meta.requires).passed)} / ${pad2(meta.requires)}</span>` +
         `</div>`
       : "";
-    return `<div class="exam-tier">${head}<ul class="exam-list">${g.items.map(examRowHTML).join("")}</ul></div>`;
+    return `<div class="ledger__tier">${head}<ol class="ledger__list">${g.items.map(examRowHTML).join("")}</ol></div>`;
   }).join("");
 
-  return `<div class="exam-summary">` +
-      `<span class="exam-summary__count">${passed} of ${total} exams passed</span>` +
-      `<div class="exam-bar" role="progressbar" aria-valuenow="${passed}" aria-valuemin="0" aria-valuemax="${total}" aria-label="Exams passed">` +
-        `<div class="exam-bar__fill" style="width: ${pct}%"></div>` +
+  return `<div class="ledger">` +
+      `<div class="ledger__masthead">` +
+        `<span class="ledger__figure">${pad2(passed)}<span class="ledger__slash">/</span>${pad2(total)}</span>` +
+        `<span class="ledger__caption">exams cleared · CAS track</span>` +
       `</div>` +
-    `</div>` + groupsHTML;
+      tiersHTML +
+    `</div>`;
 }

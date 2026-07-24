@@ -15,11 +15,22 @@ test("computeSummary handles empty list", () => {
   assert.deepEqual(computeSummary([]), { passed: 0, total: 0 });
 });
 
-test("examRowHTML includes name, status class, and note", () => {
-  const html = examRowHTML({ name: "Exam FAM", status: "scheduled", note: "Oct 2026" });
-  assert.match(html, /exam--scheduled/);
+test("credentialProgress counts passed within the first N exams only", () => {
+  const exams = [
+    { name: "1", status: "passed" },
+    { name: "2", status: "passed" },
+    { name: "3", status: "notStarted" },
+    { name: "4", status: "passed" },
+  ];
+  assert.deepEqual(credentialProgress(exams, 3), { passed: 2, requires: 3 });
+  assert.deepEqual(credentialProgress(exams, 4), { passed: 3, requires: 4 });
+});
+
+test("examRowHTML includes name, status class, and scheduled note", () => {
+  const html = examRowHTML({ name: "Exam FAM", status: "scheduled", note: "Up next" });
+  assert.match(html, /rec--scheduled/);
   assert.match(html, /Exam FAM/);
-  assert.match(html, /Oct 2026/);
+  assert.match(html, /Up next/);
 });
 
 test("examRowHTML escapes HTML in user content", () => {
@@ -28,41 +39,27 @@ test("examRowHTML escapes HTML in user content", () => {
   assert.match(html, /&lt;b&gt;/);
 });
 
-test("renderExams reflects summary, bar width, and one row per exam", () => {
+test("renderExams renders one record row per exam", () => {
   const html = renderExams([
     { name: "A", status: "passed" },
     { name: "B", status: "scheduled" },
   ]);
-  assert.match(html, /1 of 2 exams passed/);
-  assert.equal((html.match(/<li /g) || []).length, 2);
-  assert.match(html, /width:\s*50%/);
+  assert.equal((html.match(/class="rec /g) || []).length, 2);
+  assert.match(html, /01/); // padded passed
+  assert.match(html, /02/); // padded total
 });
 
-test("credentialProgress counts passed within the first N exams only", () => {
-  const exams = [
-    { name: "1", status: "passed" },
-    { name: "2", status: "passed" },
-    { name: "3", status: "notStarted" },
-    { name: "4", status: "passed" }, // beyond the first 3 — must not count for requires=3
-  ];
-  assert.deepEqual(credentialProgress(exams, 3), { passed: 2, requires: 3 });
-  assert.deepEqual(credentialProgress(exams, 4), { passed: 3, requires: 4 });
-});
-
-test("renderExams shows ACAS and FCAS tier headers with credential progress", () => {
+test("renderExams shows ACAS/FCAS ledger with padded credential figures", () => {
   const html = renderExams(EXAMS);
-  // headline over all 9
-  assert.match(html, /3 of 9 exams passed/);
-  // both credentials labeled
+  assert.match(html, /exams cleared/);
   assert.match(html, /Associate/);
   assert.match(html, /ACAS/);
   assert.match(html, /Fellow/);
   assert.match(html, /FCAS/);
-  // progress toward each credential
-  assert.match(html, /3 \/ 6/); // ACAS
-  assert.match(html, /3 \/ 9/); // FCAS
-  // two tier groups
-  assert.equal((html.match(/class="exam-tier"/g) || []).length, 2);
+  assert.match(html, /03 \/ 06/); // ACAS progress
+  assert.match(html, /03 \/ 09/); // FCAS progress
+  assert.equal((html.match(/class="ledger__tier"/g) || []).length, 2);
+  assert.equal((html.match(/class="rec /g) || []).length, 9);
 });
 
 test("EXAMS default data is well-formed (9 exams, valid status + tier)", () => {
