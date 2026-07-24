@@ -105,6 +105,27 @@ body {
 .exam__name { font-weight: 600; }
 .exam__status { margin-left: auto; color: var(--muted); font-size: .9rem; }
 
+/* Music */
+.music { margin-bottom: 32px; }
+.music p { margin: 0 0 12px; }
+.chips-label {
+  color: var(--muted); font-size: .78rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em; margin: 0 0 10px !important;
+}
+.btn-inline {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 14px; padding: 9px 16px;
+  background: var(--surface); border: 1px solid var(--surface-hi);
+  border-radius: 999px; color: var(--text); text-decoration: none; font-weight: 600;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.btn-inline:hover {
+  background: var(--surface-hi); border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(199, 125, 255, 0.35); transform: translateY(-1px);
+}
+.btn-inline:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+.btn-inline__icon { color: var(--accent-bright); font-size: .9rem; }
+
 /* Food obsessions */
 .foods { margin-bottom: 32px; }
 .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
