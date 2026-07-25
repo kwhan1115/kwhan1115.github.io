@@ -216,13 +216,14 @@ a { color: inherit; }
   line-height: 1.68;
   color: var(--ink);
 }
+/* Proper 2-line drop cap (sinks cleanly on Chrome/Safari; degrades to a
+   large inline plum initial elsewhere — never the fractional-float indent). */
 .liner__note::first-letter {
   font-family: var(--display);
-  font-size: 3.1rem;
-  line-height: 0.8;
-  float: left;
-  margin: 0.08em 0.12em 0 0;
   color: var(--plum);
+  -webkit-initial-letter: 2;
+  initial-letter: 2;
+  margin-right: 0.14em;
 }
 
 /* ---------- Find me (links) ---------- */
