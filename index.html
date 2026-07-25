@@ -44,7 +44,6 @@
         <figure class="cover__portrait shot">
           <img src="./assets/avatar.jpg" width="240" height="300" alt="Kyuwon Han smiling in a mirror selfie">
         </figure>
-        <div class="tonearm" aria-hidden="true"><span class="tonearm__head"></span></div>
       </div>
     </header>
 
@@ -191,17 +190,6 @@
     document.querySelectorAll("[data-loop]").forEach((el) => io.observe(el));
     const ledgerEl = document.querySelector(".ledger");
     if (ledgerEl) { ledgerEl.dataset.countup = "1"; io.observe(ledgerEl); }
-
-    // Replay the tonearm needle-drop each time the cover is hovered.
-    const deck = document.querySelector(".deck");
-    const tonearm = document.querySelector(".tonearm");
-    if (deck && tonearm && !reduce) {
-      deck.addEventListener("mouseenter", () => {
-        tonearm.classList.remove("replay");
-        void tonearm.offsetWidth;
-        tonearm.classList.add("replay");
-      });
-    }
 
     // Lightbox: intercept photo clicks. Without JS, thumbnails just open the image.
     const lb = document.getElementById("lightbox");
