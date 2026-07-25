@@ -35,7 +35,7 @@ Banned defaults deliberately avoided: Newsreader / Space Grotesk / Space Mono / 
 
 ## Structure & rules
 
-- **Cover-first.** One hero kicker (a catalog line) — a kicker is a system used once, NOT an eyebrow repeated over every section. Section headers are large Anton marquee titles, left-aligned, not small tracked eyebrows.
+- **Cover-first.** One hero kicker (a catalog line) — a kicker is a system used once, NOT an eyebrow repeated over every section. Section headers are large Anton marquee titles, left-aligned, not small tracked eyebrows. The name pairs with a live `Now playing — Side A · 33⅓ RPM` status (pulsing plum cue dot) grouped beneath it, the record co-starring at right.
 - **No uniform cards.** Blocks are differentiated by role (liner prose / credit list / menu / contact sheet / ledger), separated by hairline rules and spacing rhythm, not a stack of identical rounded rectangles.
 - **Exam status is a marker + label**, never a colored `border-left` rail. Passed = filled plum dot; up-next = magenta `--pop` dot (+ a single deliberate glow, the one neon moment); not-started = hollow muted ring. Figures use `Anton`/tabular; row metadata uses `Cutive Mono`.
 - **Links** are a listed set with real inline SVG brand marks, hairline-separated — not big pill buttons.
@@ -44,7 +44,7 @@ Banned defaults deliberately avoided: Newsreader / Space Grotesk / Space Mono / 
   - *Focal (cover, on load):* the vinyl is cued up onto the platter — slides out of the sleeve, spins up, tucks behind the portrait — while the name marquee wipes in.
   - *Interactive:* on fine pointers the deck tilts in 3D toward the cursor, the aura drifting with it.
   - *Scroll:* each section wipes in like a marquee light and its rows tick in staggered like a tracklist — role-specific reveals, not identical section fades.
-  - *Ambiance:* vinyl spins, equalizer plays, aura breathes, the one magenta "up next" light pulses, orbs drift (desktop). The signature duotone→color photo reveal stays.
+  - *Ambiance:* a slow plum/magenta aurora drifts behind everything (the stage light); vinyl spins, equalizer plays, aura breathes, the one magenta "up next" light pulses, orbs drift (desktop). The signature duotone→color photo reveal stays — photos also lift + bloom to color on hover, links spring their brand mark.
   - *Rules:* all motion gated behind `prefers-reduced-motion: no-preference`; loops pause offscreen; scroll reveals are JS-gated so content is fully visible without JS.
 - **Single-theme dark** by deliberate commitment (see Ground scene).
 
