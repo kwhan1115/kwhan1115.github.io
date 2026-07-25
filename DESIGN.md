@@ -40,7 +40,12 @@ Banned defaults deliberately avoided: Newsreader / Space Grotesk / Space Mono / 
 - **Exam status is a marker + label**, never a colored `border-left` rail. Passed = filled plum dot; up-next = magenta `--pop` dot (+ a single deliberate glow, the one neon moment); not-started = hollow muted ring. Figures use `Anton`/tabular; row metadata uses `Cutive Mono`.
 - **Links** are a listed set with real inline SVG brand marks, hairline-separated — not big pill buttons.
 - **Depth** = offset+blur shadows (e.g. `0 14px 34px rgba(0,0,0,.45)`), never a zero-offset colored halo.
-- **Motion** = one authored entrance on the cover (name + portrait settle) + the duotone→color photo reveal. No identical per-section fade-ins. Respect `prefers-reduced-motion`.
+- **Motion — the record plays.** One motion metaphor, carried everywhere: cueing up and playing an LP.
+  - *Focal (cover, on load):* the vinyl is cued up onto the platter — slides out of the sleeve, spins up, tucks behind the portrait — while the name marquee wipes in.
+  - *Interactive:* on fine pointers the deck tilts in 3D toward the cursor, the aura drifting with it.
+  - *Scroll:* each section wipes in like a marquee light and its rows tick in staggered like a tracklist — role-specific reveals, not identical section fades.
+  - *Ambiance:* vinyl spins, equalizer plays, aura breathes, the one magenta "up next" light pulses, orbs drift (desktop). The signature duotone→color photo reveal stays.
+  - *Rules:* all motion gated behind `prefers-reduced-motion: no-preference`; loops pause offscreen; scroll reveals are JS-gated so content is fully visible without JS.
 - **Single-theme dark** by deliberate commitment (see Ground scene).
 
 ## Constraints
