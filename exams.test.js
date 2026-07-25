@@ -33,6 +33,18 @@ test("examRowHTML includes name, status class, and scheduled note", () => {
   assert.match(html, /Up next/);
 });
 
+test("examRowHTML renders exam date when present", () => {
+  const html = examRowHTML({ name: "MAS-II", status: "scheduled", note: "Up next", date: "Jul 29" });
+  assert.match(html, /rec__date/);
+  assert.match(html, /Jul 29/);
+  assert.match(html, /Up next/); // status label still shown alongside the date
+});
+
+test("examRowHTML omits date node when no date given", () => {
+  const html = examRowHTML({ name: "Exam 5", status: "notStarted" });
+  assert.doesNotMatch(html, /rec__date/);
+});
+
 test("examRowHTML escapes HTML in user content", () => {
   const html = examRowHTML({ name: "<b>x</b>", status: "passed" });
   assert.doesNotMatch(html, /<b>x<\/b>/);

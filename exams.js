@@ -8,7 +8,7 @@ export const EXAMS = [
   { name: "Exam 1 · Probability",    status: "passed",     tier: "ACAS" },
   { name: "Exam 2 · Financial Math", status: "passed",     tier: "ACAS" },
   { name: "MAS-I",                   status: "passed",     tier: "ACAS" },
-  { name: "MAS-II",                  status: "scheduled",  tier: "ACAS", note: "Up next" },
+  { name: "MAS-II",                  status: "scheduled",  tier: "ACAS", note: "Up next", date: "Jul 29" },
   { name: "Exam 5",                  status: "notStarted", tier: "ACAS" },
   { name: "Exam 6",                  status: "notStarted", tier: "ACAS" },
   { name: "Exam 7",                  status: "notStarted", tier: "FCAS" },
@@ -43,11 +43,12 @@ export function credentialProgress(exams, requires) {
 
 export function examRowHTML(exam) {
   const status = ["passed", "scheduled", "notStarted"].includes(exam.status) ? exam.status : "notStarted";
-  const stat = status === "scheduled" && exam.note ? escapeHTML(exam.note) : LABEL[status];
+  const label = status === "scheduled" && exam.note ? escapeHTML(exam.note) : LABEL[status];
+  const date = exam.date ? `<span class="rec__date">${escapeHTML(exam.date)}</span>` : "";
   return `<li class="rec rec--${status}">` +
     `<span class="rec__mark" aria-hidden="true"></span>` +
     `<span class="rec__name">${escapeHTML(exam.name)}</span>` +
-    `<span class="rec__stat">${stat}</span>` +
+    `<span class="rec__stat"><span class="rec__label">${label}</span>${date}</span>` +
     `</li>`;
 }
 
