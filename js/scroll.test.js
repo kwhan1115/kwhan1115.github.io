@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { scrollProgress, activeSection, staggerDelays } from "./scroll.js";
+import { scrollProgress, activeSection, staggerDelays, waveHeights } from "./scroll.js";
 
 test("scrollProgress runs 0 to 1 across the scrollable range", () => {
   // 3000px document, 1000px viewport -> 2000px of travel
@@ -54,6 +54,48 @@ test("staggerDelays spaces children out in order", () => {
   assert.deepEqual(staggerDelays(4, 60), [0, 60, 120, 180]);
   assert.deepEqual(staggerDelays(1, 60), [0]);
   assert.deepEqual(staggerDelays(0, 60), []);
+});
+
+const bands = [
+  { start: 0, end: 1000 },    // short
+  { start: 1000, end: 5000 }, // long
+  { start: 5000, end: 6000 }, // short
+];
+
+test("waveHeights returns one bar per request, all in range", () => {
+  const h = waveHeights(bands, 6000, 64);
+  assert.equal(h.length, 64);
+  for (const v of h) assert.ok(v >= 0.1 && v <= 1, `bar out of range: ${v}`);
+});
+
+test("waveHeights is identical on every call — a resize must not reshuffle it", () => {
+  assert.deepEqual(waveHeights(bands, 6000, 40), waveHeights(bands, 6000, 40));
+});
+
+test("waveHeights makes longer sections louder", () => {
+  const h = waveHeights(bands, 6000, 120);
+  const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  const shortBars = h.slice(0, 20);   // first band, 1000 tall
+  const longBars = h.slice(20, 100);  // second band, 4000 tall
+  assert.ok(mean(longBars) > mean(shortBars),
+    `long band ${mean(longBars)} should out-amplitude short band ${mean(shortBars)}`);
+});
+
+test("waveHeights varies bar to bar rather than drawing a flat block", () => {
+  const h = waveHeights(bands, 6000, 60);
+  assert.ok(new Set(h.map((v) => v.toFixed(3))).size > 30, "waveform is too uniform to read as audio");
+});
+
+test("waveHeights survives having nothing to describe", () => {
+  assert.deepEqual(waveHeights([], 6000, 3), [0.12, 0.12, 0.12]);
+  assert.deepEqual(waveHeights(bands, 0, 3), [0.12, 0.12, 0.12]);
+  assert.deepEqual(waveHeights(bands, 6000, 0), []);
+});
+
+test("waveHeights places a bar past the last band without falling over", () => {
+  const h = waveHeights([{ start: 0, end: 100 }], 1000, 8);
+  assert.equal(h.length, 8);
+  for (const v of h) assert.ok(Number.isFinite(v));
 });
 
 test("staggerDelays caps the total wait so long lists still feel prompt", () => {

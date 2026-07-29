@@ -64,16 +64,20 @@
       </ul>
       <span class="topbar__ind" aria-hidden="true"></span>
     </nav>
-    <span class="topbar__bar" aria-hidden="true"><i></i></span>
-  </header>
 
-  <!-- Tonearm: the needle rides down one side of the record as you scroll.
-       Ticks are placed from real section offsets by js/main.js. -->
-  <div class="rail" aria-hidden="true">
-    <span class="rail__track"></span>
-    <ol class="rail__ticks"></ol>
-    <span class="rail__arm"><i></i></span>
-  </div>
+    <!-- Waveform progress: the page drawn as audio. Bars are sized from each
+         section's real share of the document, filled up to where you've read,
+         and draggable to seek. Hidden from assistive tech on purpose — the nav
+         above is the accessible way to do the same job, and this is a
+         pointer-only shortcut layered on top of it. -->
+    <div class="wave" aria-hidden="true">
+      <div class="wave__bars wave__bars--dim"></div>
+      <div class="wave__bars wave__bars--lit"></div>
+      <div class="wave__marks"></div>
+      <span class="wave__head"></span>
+      <span class="wave__tip"></span>
+    </div>
+  </header>
 
   <main class="sleeve" id="main">
 

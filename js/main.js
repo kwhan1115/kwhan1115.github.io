@@ -2,7 +2,7 @@
 // file runs the page's single animation frame and hands out the delta.
 
 import { EXAMS, renderExams } from "../exams.js";
-import { scrollProgress, activeSection } from "./scroll.js";
+import { scrollProgress, activeSection, waveHeights } from "./scroll.js";
 import { createDeck } from "./deck.js";
 import { createStage } from "./stage.js";
 import { createLightbox } from "./lightbox.js";
@@ -78,38 +78,101 @@ function drawEq(vel, t) {
   }
 }
 
-// ---------------------------------------------------- rail, nav, and reveals
+// -------------------------------------------------- waveform, nav, reveals
 
 const cover = document.querySelector(".cover");
 const blocks = [...document.querySelectorAll("main .block")];
 const navLinks = [...document.querySelectorAll(".topbar__nav a")];
 const indicator = document.querySelector(".topbar__ind");
 const navList = document.querySelector(".topbar__nav ul");
-const ticksList = document.querySelector(".rail__ticks");
-const rail = document.querySelector(".rail");
-const bar = document.querySelector(".topbar__bar");
 
-// One tick per section, placed where the needle will actually be when that
-// section takes over — so the rail reads as this page's tracklist, not decoration.
-const ticks = blocks.map(() => {
-  const li = document.createElement("li");
-  ticksList.appendChild(li);
-  return li;
-});
+const wave = document.querySelector(".wave");
+const waveDim = wave.querySelector(".wave__bars--dim");
+const waveLit = wave.querySelector(".wave__bars--lit");
+const waveMarks = wave.querySelector(".wave__marks");
+const waveTip = wave.querySelector(".wave__tip");
+const bandNames = ["Cover", ...navLinks.map((a) => a.textContent.trim())];
 
 let spots = [];   // document offsets: the cover, then each block
+let edges = [];   // the same boundaries in progress space, 0–1
+let barCount = 0;
 let activeIdx = -2;
 
+// The waveform lives on the progress axis, not the document axis, so the
+// playhead and the section marks agree with each other. An edge sits where
+// that section actually takes over — the same crossing the nav uses.
 function measureSpots() {
   const y = window.scrollY;
-  spots = [cover, ...blocks].map((el) => el.getBoundingClientRect().top + y);
   const docH = document.documentElement.scrollHeight;
   const vh = window.innerHeight;
-  blocks.forEach((b, i) => {
-    const cross = b.getBoundingClientRect().top + y - vh * 0.35;
-    ticks[i].style.setProperty("--at", `${(scrollProgress(cross, docH, vh) * 100).toFixed(2)}%`);
-  });
+  spots = [cover, ...blocks].map((el) => el.getBoundingClientRect().top + y);
+  edges = spots.map((top) => scrollProgress(top - vh * 0.35, docH, vh));
+  drawWave();
 }
+
+function drawWave() {
+  const bands = edges.map((start, i) => ({ start, end: i + 1 < edges.length ? edges[i + 1] : 1 }));
+  const want = Math.max(28, Math.min(150, Math.round(wave.clientWidth / 9)));
+  const heights = waveHeights(bands, 1, want);
+
+  if (want !== barCount) {
+    const bars = heights.map(() => "<i></i>").join("");
+    waveDim.innerHTML = bars;
+    waveLit.innerHTML = bars;
+    barCount = want;
+  }
+  for (let i = 0; i < want; i++) {
+    const h = heights[i].toFixed(3);
+    waveDim.children[i].style.setProperty("--h", h);
+    waveLit.children[i].style.setProperty("--h", h);
+  }
+  // Skip edges[0]: the start of the page is not a boundary between anything.
+  waveMarks.innerHTML = edges.slice(1)
+    .map((p) => `<i style="--at:${(p * 100).toFixed(2)}%"></i>`).join("");
+}
+
+// ---- scrubbing ----------------------------------------------------------
+
+const bandAt = (p) => {
+  let i = 0;
+  for (let k = 0; k < edges.length; k++) if (edges[k] <= p) i = k;
+  return i;
+};
+
+function seek(clientX) {
+  const r = wave.getBoundingClientRect();
+  const p = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+  const range = document.documentElement.scrollHeight - window.innerHeight;
+  // `instant` because the page scrolls smoothly by default, and a smooth
+  // animation chasing every drag frame lags behind the finger.
+  window.scrollTo({ top: p * range, behavior: "instant" });
+  return p;
+}
+
+function showTip(clientX) {
+  const r = wave.getBoundingClientRect();
+  const p = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+  wave.style.setProperty("--tip", `${(p * 100).toFixed(2)}%`);
+  waveTip.textContent = bandNames[bandAt(p)] ?? "";
+}
+
+let scrubbing = false;
+wave.addEventListener("pointerdown", (e) => {
+  scrubbing = true;
+  wave.classList.add("is-scrubbing");
+  try { wave.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+  seek(e.clientX);
+  showTip(e.clientX);
+});
+wave.addEventListener("pointermove", (e) => {
+  wave.classList.add("is-hover");
+  showTip(e.clientX);
+  if (scrubbing) seek(e.clientX);
+});
+wave.addEventListener("pointerleave", () => wave.classList.remove("is-hover"));
+const endScrub = () => { scrubbing = false; wave.classList.remove("is-scrubbing"); };
+wave.addEventListener("pointerup", endScrub);
+wave.addEventListener("pointercancel", endScrub);
 
 function moveIndicator(link) {
   if (!link) { indicator.classList.remove("is-on"); return; }
@@ -124,8 +187,7 @@ function onScroll() {
   const docH = document.documentElement.scrollHeight;
   const prog = scrollProgress(y, docH, vh);
 
-  rail.style.setProperty("--prog", prog.toFixed(4));
-  bar.style.setProperty("--prog", prog.toFixed(4));
+  wave.style.setProperty("--prog", prog.toFixed(4));
 
   // spots[0] is the cover, which owns no nav item — hence the -1.
   const idx = activeSection(spots, { scrollY: y, viewportH: vh, docHeight: docH }) - 1;
@@ -135,7 +197,6 @@ function onScroll() {
       if (i === idx) a.setAttribute("aria-current", "true");
       else a.removeAttribute("aria-current");
     });
-    ticks.forEach((t, i) => t.classList.toggle("is-on", i === idx));
     moveIndicator(navLinks[idx]);
   }
   measureFocus();
