@@ -6,11 +6,20 @@
 // off one requestAnimationFrame.
 
 const TAU = Math.PI * 2;
+const DEG2RAD = Math.PI / 180;
+
+// A backgrounded tab hands back a huge dt; without a cap the field teleports on
+// the first frame after you come back.
+const MAX_DT = 0.1;
 
 // How close the pointer has to be to shove a particle off its groove, and how
 // hard it shoves.
 const PUSH_RADIUS = 120;
 const PUSH_FORCE = 34;
+
+// Motes live this far outside the viewport and fade across it, so one reaching
+// the edge dissolves and a new one dissolves in — the wrap is never a pop.
+const MARGIN = 60;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -41,7 +50,7 @@ export function createStage(canvas) {
     }));
 
     motes = Array.from({ length: moteCount }, () => ({
-      x: rand(0, w), y: rand(0, h),
+      x: rand(-MARGIN, w + MARGIN), y: rand(-MARGIN, h + MARGIN),
       vy: rand(-11, -3), vx: rand(-3, 3),
       sz: rand(0.6, 1.9),
       a: rand(0.1, 0.4),
@@ -91,11 +100,17 @@ export function createStage(canvas) {
 
   /**
    * @param {number} dt seconds since the last frame
-   * @param {number} angle the record's current rotation, degrees
    * @param {number} vel the record's angular velocity, deg/s
+   *
+   * Deliberately takes velocity, not the record's angle. The angle is wrapped
+   * into [0, 360) for CSS, and each particle scales it by its own `lag` — so
+   * every wrap used to knock the whole field sideways by a different amount per
+   * particle, once per revolution. Integrating velocity per particle means the
+   * wrap simply doesn't exist here.
    */
-  function draw(dt, angle, vel) {
+  function draw(dt, vel) {
     if (!w || !h) return;
+    const step = Math.min(Math.max(dt, 0), MAX_DT);
     ctx.clearRect(0, 0, w, h);
 
     if (focus) {
@@ -107,27 +122,32 @@ export function createStage(canvas) {
         ctx.beginPath(); ctx.arc(focus.x, focus.y, r, 0, TAU); ctx.stroke();
       }
 
-      const spin = (angle * Math.PI) / 180;
+      // Fast spin brightens the field — the record throws off more dust.
+      const heat = Math.min(1, Math.abs(vel) / 900);
+      const rate = vel * DEG2RAD * step;
       for (const p of grooves) {
+        p.th += rate * p.lag;
+        if (p.th >= TAU || p.th < 0) p.th -= Math.floor(p.th / TAU) * TAU;
         const r = focus.r * p.rad;
-        const th = p.th + spin * p.lag;
-        const x = focus.x + Math.cos(th) * r;
-        const y = focus.y + Math.sin(th) * r;
-        shove(p, x, y, dt);
-        // Fast spin brightens the field — the record throws off more dust.
-        const heat = Math.min(1, Math.abs(vel) / 900);
+        const x = focus.x + Math.cos(p.th) * r;
+        const y = focus.y + Math.sin(p.th) * r;
+        shove(p, x, y, step);
         dot(x + p.ox, y + p.oy, p.sz, p.a * (0.75 + heat * 0.5), p.warm);
       }
     }
 
     for (const m of motes) {
-      m.x += m.vx * dt;
-      m.y += m.vy * dt;
-      if (m.y < -10) { m.y = h + 10; m.x = rand(0, w); }
-      if (m.x < -10) m.x = w + 10;
-      if (m.x > w + 10) m.x = -10;
-      shove(m, m.x, m.y, dt);
-      dot(m.x + m.ox, m.y + m.oy, m.sz, m.a, false);
+      m.x += m.vx * step;
+      m.y += m.vy * step;
+      if (m.y < -MARGIN) m.y = h + MARGIN;
+      if (m.x < -MARGIN) m.x = w + MARGIN;
+      if (m.x > w + MARGIN) m.x = -MARGIN;
+      shove(m, m.x, m.y, step);
+      // Fade to nothing at the margins, so the wrap happens while invisible.
+      const fy = Math.min(m.y + MARGIN, h + MARGIN - m.y) / (MARGIN + 10);
+      const fx = Math.min(m.x + MARGIN, w + MARGIN - m.x) / (MARGIN + 10);
+      const fade = Math.min(1, Math.max(0, Math.min(fy, fx)));
+      if (fade > 0) dot(m.x + m.ox, m.y + m.oy, m.sz, m.a * fade, false);
     }
   }
 

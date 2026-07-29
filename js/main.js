@@ -325,7 +325,7 @@ function frame(now) {
   // rather than a write/read ping-pong.
   measureFocus();
   deck.step(dt);
-  stage?.draw(dt, deck.state.angle, deck.state.vel);
+  stage?.draw(dt, deck.state.vel);
   drawEq(deck.state.vel, now);
 
   // With motion reduced nothing animates on its own, so the loop only runs
