@@ -59,6 +59,9 @@ const canvas = document.querySelector(".stage");
 const stage = reduced ? null : createStage(canvas);
 const record = document.querySelector(".record");
 
+// Called every frame, not just on scroll: the cue-up animation slides the deck
+// ~100px during the first second, and a focus sampled once at startup leaves
+// the groove field centred where the record used to be.
 function measureFocus() {
   if (!stage) return;
   const r = record.getBoundingClientRect();
@@ -201,7 +204,6 @@ function onScroll() {
     });
     moveIndicator(navLinks[idx]);
   }
-  measureFocus();
 }
 
 navList.addEventListener("scroll", () => moveIndicator(navLinks[activeIdx]), { passive: true });
@@ -319,6 +321,9 @@ let last = performance.now();
 function frame(now) {
   const dt = (now - last) / 1000;
   last = now;
+  // Read layout before this frame's writes, so there's one flush per frame
+  // rather than a write/read ping-pong.
+  measureFocus();
   deck.step(dt);
   stage?.draw(dt, deck.state.angle, deck.state.vel);
   drawEq(deck.state.vel, now);

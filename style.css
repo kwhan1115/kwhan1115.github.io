@@ -329,10 +329,13 @@ html:not(.ready) .wave { display: none; }
 
 /* ---- The deck ---- */
 .deck { position: relative; width: min(240px, 66%); justify-self: start; }
+/* Symmetric on purpose: -25%/150% puts the box's centre exactly on the record's.
+   The old -18%/-20% offsets were sized for a deck that also held the portrait,
+   and left the glow sitting ~17px to the right of the vinyl. */
 .deck::before {
   content: ""; position: absolute; z-index: 0;
-  top: -20%; left: -18%; width: 150%; height: 150%;
-  background: radial-gradient(circle at 50% 46%, rgba(199, 125, 255, 0.30), rgba(199, 125, 255, 0) 60%);
+  top: -25%; left: -25%; width: 150%; height: 150%;
+  background: radial-gradient(circle at 50% 50%, rgba(199, 125, 255, 0.30), rgba(199, 125, 255, 0) 60%);
   filter: blur(6px); pointer-events: none;
 }
 
