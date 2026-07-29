@@ -63,7 +63,9 @@ export function waveHeights(bands, docHeight, barCount) {
     let band = bands.findIndex((b) => pos >= b.start && pos < b.end);
     if (band === -1) band = pos < bands[0].start ? 0 : bands.length - 1;
     const h = amplitudes[band] * (0.32 + 0.68 * texture(i));
-    return Math.min(1, Math.max(0.12, h));
+    // Real audio rarely flatlines, and a bar shorter than it is wide stops
+    // reading as a bar at all.
+    return Math.min(1, Math.max(0.24, h));
   });
 }
 

@@ -112,7 +112,8 @@ function measureSpots() {
 
 function drawWave() {
   const bands = edges.map((start, i) => ({ start, end: i + 1 < edges.length ? edges[i + 1] : 1 }));
-  const want = Math.max(28, Math.min(150, Math.round(wave.clientWidth / 9)));
+  // ~5px of pitch per bar: 3px of bar against the 2px flex gap.
+  const want = Math.max(40, Math.min(340, Math.round(wave.clientWidth / 5)));
   const heights = waveHeights(bands, 1, want);
 
   if (want !== barCount) {
