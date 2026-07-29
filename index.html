@@ -10,56 +10,110 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;800&family=Cutive+Mono&display=swap">
   <link rel="stylesheet" href="./style.css">
-  <!-- Gate scroll-choreography styles on JS so no-JS visitors see everything. Runs pre-paint. -->
-  <script>document.documentElement.classList.add("js");</script>
+  <!-- Gate every reveal and the load sequence on JS, so a no-JS visitor gets the
+       whole page at once instead of a blank sleeve. Runs pre-paint, so there's
+       no flash of un-hidden content. The timer is the safety net: if the module
+       never runs — offline, blocked, broken — the gate lifts and the page shows
+       everything rather than staying hidden behind reveals that never fire. -->
+  <script>
+    document.documentElement.classList.add("js");
+    setTimeout(function () {
+      var r = document.documentElement;
+      if (!r.classList.contains("ready")) r.classList.remove("js");
+    }, 2500);
+  </script>
 </head>
 <body>
 <!--
   DIRECTION — "Liner Notes" (brief-pinned by Kyuwon; no concept roll)
-  THESIS: A personal site as a jazz LP record sleeve. Refuses the dark rounded-card
-    link-in-bio it replaces.
-  OWN-WORLD: Deep aubergine ground, plum fields, one magenta-eye pop. Anton marquee
-    display, Archivo running text, Cutive Mono typed credits. Duotone photos. Hairlines,
-    not cards.
-  STORY: A friend taps the bio link at night, reads Kyuwon like sleeve copy — who he is,
-    where to find him, what he plays, what he eats, his exam record — and taps a link.
-  FIRST VIEWPORT: Giant Anton "KYUWON HAN" left, duotone Gengar-hoodie portrait right,
-    a catalog kicker above. No hero card.
-  FORM: Record sleeve; brief-pinned (beats the roll); signature = duotone photos that
-    bloom to color on hover.
+  THESIS: A personal site as a jazz LP record sleeve — and the record plays.
+    The vinyl is not decoration: you grab it, throw it, scratch it, and other
+    sections cue tracks onto it. Refuses the dark rounded-card link-in-bio it
+    replaced, and refuses the numbered-card dev-portfolio template too.
+  OWN-WORLD: Deep aubergine ground, plum fields, one magenta-eye pop. Anton
+    marquee display, Archivo running text, Cutive Mono typed credits. Duotone
+    photos that resolve to colour under the pointer. Hairlines, not cards.
+  STORY: A friend taps the bio link at night, spins the record, reads Kyuwon
+    like sleeve copy — who he is, where to find him, what he plays, what he
+    eats, his exam record — and taps a link.
+  FIRST VIEWPORT: Giant Anton "KYUWON HAN" left, a live spinning record right
+    over a groove-field canvas, a tonearm riding the left edge. No portrait.
+  SIGNATURE: the playable record — everything else stays quiet around it.
 -->
-  <main class="sleeve">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <!-- Groove field + drifting dust. Purely decorative; drawn by js/stage.js. -->
+  <canvas class="stage" aria-hidden="true"></canvas>
+
+  <!-- Living aurora: slow-drifting stage light behind everything (decorative) -->
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="topbar">
+    <a class="topbar__name" href="#top">Kyuwon&nbsp;Han</a>
+    <!-- Appears once a section cues a track, so the record's state is visible
+         even when the record itself has scrolled away. -->
+    <p class="topbar__now" hidden><span aria-hidden="true">▸</span> <span class="topbar__now-text"></span></p>
+    <nav class="topbar__nav" aria-label="Sections">
+      <ul>
+        <li><a href="#about">Liner notes</a></li>
+        <li><a href="#links">Find me</a></li>
+        <li><a href="#music">Music</a></li>
+        <li><a href="#food">Food</a></li>
+        <li><a href="#photos">Photos</a></li>
+        <li><a href="#exams">Exams</a></li>
+      </ul>
+      <span class="topbar__ind" aria-hidden="true"></span>
+    </nav>
+    <span class="topbar__bar" aria-hidden="true"><i></i></span>
+  </header>
+
+  <!-- Tonearm: the needle rides down one side of the record as you scroll.
+       Ticks are placed from real section offsets by js/main.js. -->
+  <div class="rail" aria-hidden="true">
+    <span class="rail__track"></span>
+    <ol class="rail__ticks"></ol>
+    <span class="rail__arm"><i></i></span>
+  </div>
+
+  <main class="sleeve" id="main">
 
     <!-- COVER -->
-    <header class="cover">
+    <header class="cover" id="top">
       <p class="cover__cat">Personal record — No.&nbsp;01 — kwhan1115</p>
       <div class="cover__head">
         <h1 class="cover__name"><span>Kyuwon</span><span>Han</span></h1>
-        <p class="cover__now"><span class="cover__now-dot" aria-hidden="true"></span>Now playing — Side A · 33⅓ RPM</p>
       </div>
-      <div class="deck" data-loop>
-        <div class="vinyl" aria-hidden="true">
-          <div class="vinyl__disc">
-            <span class="vinyl__label">
-              <span class="vinyl__title">Kyuwon<br>Han</span>
-              <span class="vinyl__side">33⅓ · stereo</span>
+
+      <div class="deck">
+        <button class="record" type="button" aria-pressed="true"
+                aria-label="Record. Drag to spin it, arrow keys to nudge, space to stop.">
+          <span class="record__disc" aria-hidden="true">
+            <span class="record__label">
+              <span class="record__title">Kyuwon<br>Han</span>
+              <span class="record__side">33⅓ · stereo</span>
             </span>
-          </div>
-        </div>
-        <figure class="cover__portrait shot">
-          <img src="./assets/avatar.jpg" width="240" height="300" alt="Kyuwon Han smiling in a mirror selfie">
-        </figure>
+          </span>
+        </button>
+      </div>
+
+      <!-- Status strip along the foot of the sleeve. -->
+      <div class="cover__foot">
+        <p class="cover__now">
+          <span class="cover__now-dot" aria-hidden="true"></span>
+          <span class="cover__now-text" aria-live="polite">Now playing — Side A · 33⅓ RPM</span>
+        </p>
+        <p class="deck__hint" aria-hidden="true">drag the record</p>
       </div>
     </header>
 
     <!-- LINER NOTES (about) -->
-    <section class="block liner" aria-labelledby="about-h">
+    <section class="block liner" id="about" aria-labelledby="about-h">
       <h2 id="about-h" class="marquee">Liner notes</h2>
       <p class="liner__note">Hi friends! I'm Kyuwon, currently working as an actuary on the CAS exam track. I like to play sports, mostly climbing and tennis, but I also enjoy other sports at times like golf, badminton, swimming, running. I have a pretty obsessive personality, so there are times where I kinda do the same thing over and over again. Anyways, welcome to my little website!</p>
     </section>
 
     <!-- FIND ME (links) -->
-    <section class="block" aria-labelledby="links-h">
+    <section class="block" id="links" aria-labelledby="links-h">
       <h2 id="links-h" class="marquee">Find me</h2>
       <ul class="wires">
         <li><a class="wire" href="https://instagram.com/kwhan1115">
@@ -75,27 +129,28 @@
     </section>
 
     <!-- MUSIC -->
-    <section class="block" aria-labelledby="music-h">
-      <h2 id="music-h" class="marquee">Music <span class="eq" data-loop aria-hidden="true"><i></i><i></i><i></i><i></i></span></h2>
+    <section class="block" id="music" aria-labelledby="music-h">
+      <h2 id="music-h" class="marquee">Music <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></h2>
       <p class="lead">I play piano, percussion, a bit of drums, guitar, and bass.</p>
-      <p class="credit-label">On heavy rotation</p>
+      <p class="credit-label">On heavy rotation — pick one to put it on the record</p>
       <ul class="credits">
-        <li>Hiromi Uehara</li>
-        <li>Erroll Garner</li>
-        <li>Bill Evans</li>
-        <li>Nikolai Kapustin</li>
-        <li>Anomalie</li>
-        <li>insaneintherain</li>
+        <li><button class="credit" type="button" data-cue="Hiromi Uehara"    data-sub="On heavy rotation">Hiromi Uehara</button></li>
+        <li><button class="credit" type="button" data-cue="Erroll Garner"    data-sub="On heavy rotation">Erroll Garner</button></li>
+        <li><button class="credit" type="button" data-cue="Bill Evans"       data-sub="On heavy rotation">Bill Evans</button></li>
+        <li><button class="credit" type="button" data-cue="Nikolai Kapustin" data-sub="On heavy rotation">Nikolai Kapustin</button></li>
+        <li><button class="credit" type="button" data-cue="Anomalie"         data-sub="On heavy rotation">Anomalie</button></li>
+        <li><button class="credit" type="button" data-cue="insaneintherain"  data-sub="On heavy rotation">insaneintherain</button></li>
       </ul>
       <figure class="met">
         <a class="shot met__frame" href="./assets/music-hiromi.jpg">
-          <img src="./assets/music-hiromi.jpg" alt="Kyuwon with pianist Hiromi Uehara at a signing table" loading="lazy"></a>
+          <img src="./assets/music-hiromi.jpg" alt="Kyuwon with pianist Hiromi Uehara at a signing table" loading="lazy">
+          <img class="shot__color" src="./assets/music-hiromi.jpg" alt="" aria-hidden="true" loading="lazy"></a>
         <figcaption>Met Hiromi Uehara — a real highlight.</figcaption>
       </figure>
     </section>
 
     <!-- FOOD -->
-    <section class="block" aria-labelledby="food-h">
+    <section class="block" id="food" aria-labelledby="food-h">
       <h2 id="food-h" class="marquee">Food obsessions</h2>
       <ul class="menu">
         <li>Chi Forest</li>
@@ -111,32 +166,41 @@
     </section>
 
     <!-- PHOTOS: contact sheet -->
-    <section class="block" aria-labelledby="photos-h">
+    <section class="block photos" id="photos" aria-labelledby="photos-h">
       <h2 id="photos-h" class="marquee">Photos</h2>
       <ul class="sheet">
         <li><a class="shot sheet__frame" href="./assets/photo1.jpg">
-          <img src="./assets/photo1.jpg" alt="Kyuwon in a Gengar hoodie" loading="lazy"></a></li>
+          <img src="./assets/photo1.jpg" alt="Kyuwon in a Gengar hoodie" loading="lazy">
+          <img class="shot__color" src="./assets/photo1.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo2.jpg">
-          <img src="./assets/photo2.jpg" alt="Kyuwon at a convex street mirror holding a film camera" loading="lazy"></a></li>
+          <img src="./assets/photo2.jpg" alt="Kyuwon at a convex street mirror holding a film camera" loading="lazy">
+          <img class="shot__color" src="./assets/photo2.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo3.jpg">
-          <img src="./assets/photo3.jpg" alt="Kyuwon at a science museum brain exhibit" loading="lazy"></a></li>
+          <img src="./assets/photo3.jpg" alt="Kyuwon at a science museum brain exhibit" loading="lazy">
+          <img class="shot__color" src="./assets/photo3.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo4.jpg">
-          <img src="./assets/photo4.jpg" alt="Kyuwon and friends out at night in Dallas" loading="lazy"></a></li>
+          <img src="./assets/photo4.jpg" alt="Kyuwon and friends out at night in Dallas" loading="lazy">
+          <img class="shot__color" src="./assets/photo4.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo5.jpg">
-          <img src="./assets/photo5.jpg" alt="Kyuwon with a big group of friends at a house party" loading="lazy"></a></li>
+          <img src="./assets/photo5.jpg" alt="Kyuwon with a big group of friends at a house party" loading="lazy">
+          <img class="shot__color" src="./assets/photo5.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo6.jpg">
-          <img src="./assets/photo6.jpg" alt="Kyuwon and friends at a winter North Pole photo hut" loading="lazy"></a></li>
+          <img src="./assets/photo6.jpg" alt="Kyuwon and friends at a winter North Pole photo hut" loading="lazy">
+          <img class="shot__color" src="./assets/photo6.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo7.jpg">
-          <img src="./assets/photo7.jpg" alt="Kyuwon's friends at a Thai dinner" loading="lazy"></a></li>
+          <img src="./assets/photo7.jpg" alt="Kyuwon's friends at a Thai dinner" loading="lazy">
+          <img class="shot__color" src="./assets/photo7.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo8.jpg">
-          <img src="./assets/photo8.jpg" alt="Kyuwon and friends in Halloween costumes" loading="lazy"></a></li>
+          <img src="./assets/photo8.jpg" alt="Kyuwon and friends in Halloween costumes" loading="lazy">
+          <img class="shot__color" src="./assets/photo8.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
         <li><a class="shot sheet__frame" href="./assets/photo9.jpg">
-          <img src="./assets/photo9.jpg" alt="Kyuwon and friends hanging out on a couch" loading="lazy"></a></li>
+          <img src="./assets/photo9.jpg" alt="Kyuwon and friends hanging out on a couch" loading="lazy">
+          <img class="shot__color" src="./assets/photo9.jpg" alt="" aria-hidden="true" loading="lazy"></a></li>
       </ul>
     </section>
 
     <!-- EXAM RECORD -->
-    <section class="block" aria-labelledby="exams-h">
+    <section class="block" id="exams" aria-labelledby="exams-h">
       <h2 id="exams-h" class="marquee">Exam record</h2>
       <div id="exam-tracker"></div>
       <noscript><p class="lead">Enable JavaScript to see the exam record.</p></noscript>
@@ -149,116 +213,20 @@
 
   </main>
 
-  <!-- Living aurora: slow-drifting stage light behind everything (decorative) -->
-  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
-  <!-- Desktop haunt: drifting spectral orbs (decorative) -->
-  <div class="haunt" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <!-- Record-sleeve spines framing the wide desktop margins -->
-  <div class="spine spine--l" aria-hidden="true">SIDE&nbsp;A · 33⅓ RPM · STEREO</div>
   <div class="spine spine--r" aria-hidden="true">A KWHAN1115 PRESSING · MMXXVI</div>
+
+  <!-- Needle cursor (fine pointers only; js/main.js drives it) -->
+  <div class="needle" aria-hidden="true"></div>
 
   <!-- Lightbox (JS-shown; thumbnails link to the full image without it) -->
   <div class="lightbox" id="lightbox" hidden>
     <button class="lightbox__close" type="button" aria-label="Close">Close</button>
+    <button class="lightbox__nav lightbox__nav--prev" type="button" aria-label="Previous photo">‹</button>
+    <button class="lightbox__nav lightbox__nav--next" type="button" aria-label="Next photo">›</button>
     <img class="lightbox__img" id="lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
   </div>
 
-  <script type="module">
-    import { EXAMS, renderExams } from "./exams.js";
-    document.getElementById("exam-tracker").innerHTML = renderExams(EXAMS);
-    document.getElementById("year").textContent = new Date().getFullYear();
-
-    // Motion: pause loops (spinning vinyl, equalizer) when off-screen, and
-    // count the exam figures up like a play counter when the ledger scrolls in.
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const nums = document.querySelectorAll(".ledger__num");
-    if (!reduce) nums.forEach((n) => { n.textContent = "00"; });
-    function countUp(el) {
-      const to = Number(el.dataset.to) || 0;
-      const dur = 750, t0 = performance.now();
-      (function step(t) {
-        const p = Math.min(1, (t - t0) / dur);
-        el.textContent = String(Math.round(p * to)).padStart(2, "0");
-        if (p < 1) requestAnimationFrame(step);
-      })(t0);
-    }
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        e.target.classList.toggle("is-vis", e.isIntersecting);
-        if (e.isIntersecting && e.target.dataset.countup && !e.target._counted) {
-          e.target._counted = true;
-          if (!reduce) e.target.querySelectorAll(".ledger__num").forEach(countUp);
-        }
-      }
-    }, { threshold: 0.25 });
-    document.querySelectorAll("[data-loop]").forEach((el) => io.observe(el));
-    const ledgerEl = document.querySelector(".ledger");
-    if (ledgerEl) { ledgerEl.dataset.countup = "1"; io.observe(ledgerEl); }
-
-    // Scroll choreography: reveal each section once as it reaches the platter.
-    // Wait for the (large) display font + layout to settle first, otherwise every
-    // block briefly stacks in-view and reveals at once, losing the scroll effect.
-    const startReveal = () => {
-      if ("IntersectionObserver" in window) {
-        const revIO = new IntersectionObserver((entries) => {
-          for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); revIO.unobserve(e.target); }
-        }, { threshold: 0.14, rootMargin: "0px 0px -8% 0px" });
-        document.querySelectorAll(".block").forEach((b) => revIO.observe(b));
-      } else {
-        document.querySelectorAll(".block").forEach((b) => b.classList.add("in"));
-      }
-    };
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => requestAnimationFrame(startReveal));
-    else window.addEventListener("load", startReveal);
-
-    // Cover parallax: the deck tilts toward the cursor (fine pointers, motion allowed).
-    const deck = document.querySelector(".deck");
-    const cover = document.querySelector(".cover");
-    if (deck && cover && matchMedia("(pointer: fine)").matches && !reduce) {
-      let raf = 0, nx = 0, ny = 0;
-      const apply = () => {
-        raf = 0;
-        deck.style.setProperty("--rx", (nx * 7).toFixed(2) + "deg");
-        deck.style.setProperty("--ry", (-ny * 7).toFixed(2) + "deg");
-        deck.style.setProperty("--px", (nx * 14).toFixed(1) + "px");
-        deck.style.setProperty("--py", (ny * 11).toFixed(1) + "px");
-      };
-      cover.addEventListener("pointermove", (e) => {
-        const r = cover.getBoundingClientRect();
-        nx = (e.clientX - r.left) / r.width - 0.5;
-        ny = (e.clientY - r.top) / r.height - 0.5;
-        if (!raf) raf = requestAnimationFrame(apply);
-      });
-      cover.addEventListener("pointerleave", () => { nx = 0; ny = 0; if (!raf) raf = requestAnimationFrame(apply); });
-    }
-
-    // Lightbox: intercept photo clicks. Without JS, thumbnails just open the image.
-    const lb = document.getElementById("lightbox");
-    const lbImg = document.getElementById("lightbox-img");
-    const closeBtn = lb.querySelector(".lightbox__close");
-    let lastFocus = null;
-    function openLB(href, alt) {
-      lastFocus = document.activeElement;
-      lbImg.src = href; lbImg.alt = alt;
-      lb.hidden = false;
-      closeBtn.focus();
-    }
-    function closeLB() {
-      lb.hidden = true; lbImg.src = "";
-      if (lastFocus) lastFocus.focus();
-    }
-    document.querySelectorAll(".sheet__frame, .met__frame").forEach((a) => {
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        openLB(a.getAttribute("href"), a.querySelector("img").alt);
-      });
-    });
-    lb.addEventListener("click", (e) => {
-      if (e.target === lb || e.target === closeBtn) closeLB();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !lb.hidden) closeLB();
-    });
-  </script>
+  <script type="module" src="./js/main.js"></script>
 </body>
 </html>

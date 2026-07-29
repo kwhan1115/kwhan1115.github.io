@@ -110,10 +110,22 @@ test("stepSpin brings a reversed record back to forward idle", () => {
   assert.ok(Math.abs(s.vel - IDLE_VEL) < 1);
 });
 
-test("stepSpin decays toward a full stop when paused", () => {
+test("stepSpin comes to an exact stop when paused", () => {
   const s = { angle: 0, vel: IDLE_VEL, grabbed: false };
   for (let i = 0; i < 600; i++) stepSpin(s, 1 / 60, { paused: true });
-  assert.ok(Math.abs(s.vel) < 0.5, `expected ~0, got ${s.vel}`);
+  assert.equal(s.vel, 0, "must park at exactly zero, not creep forever");
+});
+
+test("stepSpin brakes faster than it settles — pause has to feel deliberate", () => {
+  const braking = { angle: 0, vel: 1200, grabbed: false };
+  const settling = { angle: 0, vel: 1200, grabbed: false };
+  for (let i = 0; i < 60; i++) {           // one second
+    stepSpin(braking, 1 / 60, { paused: true });
+    stepSpin(settling, 1 / 60);
+  }
+  // distance still to travel toward each one's target
+  assert.ok(Math.abs(braking.vel - 0) < Math.abs(settling.vel - IDLE_VEL),
+    `brake ${braking.vel} should be closer to its target than settle ${settling.vel}`);
 });
 
 test("stepSpin leaves a grabbed record alone — the pointer drives it", () => {

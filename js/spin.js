@@ -15,6 +15,10 @@ export const IDLE_VEL = rpmToDeg(IDLE_RPM); // 200 deg/s
 // after `SETTLE` the gap to idle has shrunk to ~37% of what it was.
 const SETTLE = 0.55;
 
+// Stopping is a deliberate act, so it answers faster than a throw settles —
+// otherwise pressing pause looks like nothing happened.
+const BRAKE = 0.24;
+
 // A backgrounded tab hands back a huge dt. Cap it so one frame can't teleport
 // the record halfway round the label.
 const MAX_DT = 0.1;
@@ -75,8 +79,12 @@ export function stepSpin(state, dt, { paused = false } = {}) {
   if (state.grabbed || !(dt > 0)) return state;
   const step = Math.min(dt, MAX_DT);
   const target = paused ? 0 : IDLE_VEL;
+  const tau = paused ? BRAKE : SETTLE;
 
-  state.vel = target + (state.vel - target) * Math.exp(-step / SETTLE);
+  state.vel = target + (state.vel - target) * Math.exp(-step / tau);
+  // Exponential decay never quite reaches zero; park it once it's under a
+  // fraction of a degree per second so the loop can idle.
+  if (paused && Math.abs(state.vel) < 0.4) state.vel = 0;
   state.angle = wrapAngle(state.angle + state.vel * step);
   return state;
 }

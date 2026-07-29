@@ -41,14 +41,21 @@ export function credentialProgress(exams, requires) {
   return { passed, requires };
 }
 
+// Each row is a button: pressing it cues that exam onto the hero record, so the
+// nine exams read as nine tracks on one side. The accessible name spells the
+// action out, because the visible text alone doesn't say the row does anything.
 export function examRowHTML(exam) {
   const status = ["passed", "scheduled", "notStarted"].includes(exam.status) ? exam.status : "notStarted";
   const label = status === "scheduled" && exam.note ? escapeHTML(exam.note) : LABEL[status];
   const date = exam.date ? `<span class="rec__date">${escapeHTML(exam.date)}</span>` : "";
+  const name = escapeHTML(exam.name);
   return `<li class="rec rec--${status}">` +
-    `<span class="rec__mark" aria-hidden="true"></span>` +
-    `<span class="rec__name">${escapeHTML(exam.name)}</span>` +
-    `<span class="rec__stat"><span class="rec__label">${label}</span>${date}</span>` +
+    `<button class="rec__cue" type="button" data-cue="${name}" data-sub="${label}"` +
+      ` aria-label="${name} — ${label}. Put on the record.">` +
+      `<span class="rec__mark" aria-hidden="true"></span>` +
+      `<span class="rec__name">${name}</span>` +
+      `<span class="rec__stat"><span class="rec__label">${label}</span>${date}</span>` +
+    `</button>` +
     `</li>`;
 }
 

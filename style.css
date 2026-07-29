@@ -1,4 +1,5 @@
-/* "Liner Notes" — a jazz LP record sleeve for Kyuwon Han. See DESIGN.md. */
+/* "Liner Notes" — a jazz LP record sleeve for Kyuwon Han, and the record plays.
+   See DESIGN.md. Organised by component; motion lives with the thing it moves. */
 
 :root {
   --ground: #160E1F;
@@ -13,11 +14,14 @@
   --display: "Anton", "Arial Narrow", system-ui, sans-serif;
   --sans: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "Cutive Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --topbar-h: 52px;
 }
 
 * { box-sizing: border-box; }
-
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 body {
   margin: 0;
@@ -34,21 +38,8 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-/* Vignette — darkens the edges like a printed sleeve. */
-body::after {
-  content: ""; position: fixed; inset: 0; z-index: 3; pointer-events: none;
-  box-shadow: inset 0 0 200px 40px rgba(8, 4, 14, 0.6);
-}
 
-.sleeve {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 5vw, 2.25rem) 5rem;
-  counter-reset: track;
-}
-@media (min-width: 1100px) { .sleeve { max-width: 840px; } }
-
-/* Subtle print grain — the sleeve's analog paper texture. */
+/* Print grain — the sleeve's analog paper texture. */
 body::before {
   content: "";
   position: fixed; inset: 0; z-index: 1; pointer-events: none;
@@ -56,494 +47,45 @@ body::before {
   opacity: 0.05;
   mix-blend-mode: soft-light;
 }
-@media (prefers-reduced-motion: reduce) {
-  body::before { opacity: 0.035; }
-  .vinyl__disc, .eq i { animation: none !important; }
-  .vinyl { transform: none !important; }
-  .haunt { display: none !important; }
+/* Vignette — darkens the edges like a printed sleeve. */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  box-shadow: inset 0 0 200px 40px rgba(8, 4, 14, 0.6);
 }
 
 ::selection { background: var(--plum); color: var(--ground); }
-
 a { color: inherit; }
 
-/* ---------- Cover ---------- */
-.cover { display: grid; gap: 1.4rem; }
-.cover__cat {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-family: var(--mono);
-  font-size: .8rem;
-  letter-spacing: .02em;
-  color: var(--muted);
-}
-.cover__name {
-  margin: 0;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: clamp(3.1rem, 15.5vw, 5.75rem);
-  line-height: .84;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.cover__name span { display: block; }
-.cover__name span:last-child { color: var(--plum); }
+:focus-visible { outline: 2px solid var(--plum); outline-offset: 3px; border-radius: 2px; }
 
-.deck { position: relative; width: min(220px, 62%); }
-.cover__portrait {
-  position: relative; z-index: 2;
-  margin: 0; width: 100%;
-  aspect-ratio: 4 / 5;
-  border-radius: 5px;
-  box-shadow: 0 20px 44px -16px rgba(0, 0, 0, 0.75);
+.skip {
+  position: fixed; top: 8px; left: 8px; z-index: 90;
+  transform: translateY(-160%);
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 3px;
+  padding: .6rem .9rem; font-family: var(--mono); font-size: .8rem; text-decoration: none;
+  transition: transform .2s ease;
 }
+.skip:focus { transform: none; }
 
-/* Turntable: a vinyl tucked behind the cover, spinning, that slides out of
-   the sleeve on hover/focus. */
-.vinyl {
-  position: absolute; z-index: 1;
-  top: 9%; left: 46%; width: 82%; aspect-ratio: 1;
-  transform: translateX(0);
-  transition: transform .55s cubic-bezier(.16, 1, .3, 1);
+.sleeve {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: calc(var(--topbar-h) + clamp(1.5rem, 5vw, 3rem)) clamp(1.25rem, 5vw, 2.25rem) 5rem;
+  counter-reset: track;
 }
-.deck:hover .vinyl, .deck:focus-within .vinyl { transform: translateX(27%); }
-.vinyl__disc {
-  position: relative; width: 100%; height: 100%; border-radius: 50%;
-  background: repeating-radial-gradient(circle at 50% 50%, #0b0711 0 1.3px, #1b1327 1.3px 3.2px);
-  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-  display: grid; place-items: center;
-  animation: spin 5.5s linear infinite;
-  animation-play-state: paused;
-}
-.vinyl__disc::before {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(from 210deg, transparent 0 42%, rgba(255, 255, 255, .07) 50%, transparent 58% 100%);
-}
-.vinyl__label {
-  position: relative; z-index: 1;
-  width: 42%; aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(circle at 40% 34%, var(--plum) 0%, var(--plum-deep) 100%);
-  color: var(--ground);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12em;
-  text-align: center;
-}
-.vinyl__label::after {
-  content: ""; position: absolute; width: 9%; aspect-ratio: 1; border-radius: 50%; background: var(--ground);
-}
-.vinyl__title { font-family: var(--display); font-size: clamp(.42rem, 2.5vw, .6rem); line-height: .92; text-transform: uppercase; }
-.vinyl__side { font-family: var(--mono); font-size: clamp(.3rem, 1.7vw, .42rem); opacity: .82; }
-
-@media (min-width: 560px) {
-  .cover { grid-template-columns: 1fr auto; align-items: end; column-gap: 1.5rem; }
-  .deck { width: 200px; align-self: end; }
-}
-
-/* Equalizer next to the Music header — it's playing. */
-.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: .58em; margin-left: .55rem; }
-.eq i {
-  width: 3px; height: 100%; background: var(--plum);
-  transform-origin: bottom; transform: scaleY(.3);
-  animation: eq .9s ease-in-out infinite; animation-play-state: paused;
-}
-.eq i:nth-child(1) { animation-delay: -.2s; }
-.eq i:nth-child(2) { animation-delay: -.5s; animation-duration: .7s; }
-.eq i:nth-child(3) { animation-delay: -.1s; animation-duration: 1.1s; }
-.eq i:nth-child(4) { animation-delay: -.35s; animation-duration: .8s; }
-
-[data-loop].is-vis .vinyl__disc, .eq.is-vis i { animation-play-state: running; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes eq { 0%, 100% { transform: scaleY(.28); } 50% { transform: scaleY(1); } }
-
-/* ---------- Desktop haunt: ambient drifting orbs ---------- */
-.haunt { display: none; }
-
-@media (min-width: 1024px) {
-  .haunt {
-    display: block; position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
-  }
-  .haunt i {
-    position: absolute; border-radius: 50%;
-    background: radial-gradient(circle, rgba(199, 125, 255, 0.45), rgba(199, 125, 255, 0) 70%);
-    filter: blur(1px); animation: drift linear infinite;
-  }
-  .haunt i:nth-child(1) { left: 5%;  bottom: -8%; width: 70px; height: 70px; animation-duration: 26s; animation-delay: -4s; }
-  .haunt i:nth-child(2) { left: 11%; bottom: -8%; width: 34px; height: 34px; animation-duration: 20s; animation-delay: -12s; }
-  .haunt i:nth-child(3) { left: 90%; bottom: -8%; width: 92px; height: 92px; animation-duration: 33s; animation-delay: -8s; }
-  .haunt i:nth-child(4) { left: 94%; bottom: -8%; width: 44px; height: 44px; animation-duration: 22s; animation-delay: -2s; }
-  .haunt i:nth-child(5) { left: 84%; bottom: -8%; width: 26px; height: 26px; animation-duration: 18s; animation-delay: -15s; }
-  .haunt i:nth-child(6) { left: 8%;  bottom: -8%; width: 50px; height: 50px; animation-duration: 24s; animation-delay: -20s; }
-}
-
-@keyframes drift { 0% { transform: translateY(0); opacity: 0; } 12% { opacity: .6; } 88% { opacity: .5; } 100% { transform: translateY(-114vh) translateX(14px); opacity: 0; } }
-
-/* ---------- Blocks + marquee headers ---------- */
-.block {
-  margin-top: 2.9rem;
-  padding-top: 2.9rem;
-  border-top: 1px solid var(--line);
-}
-.marquee {
-  counter-increment: track;
-  margin: 0 0 1.15rem;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: clamp(1.7rem, 7vw, 2.55rem);
-  line-height: 1;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-  color: var(--ink);
-  text-shadow: 0 0 24px rgba(199, 125, 255, 0.32);
-}
-.marquee::before {
-  content: "A" counter(track);
-  display: block;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  color: var(--plum);
-  text-shadow: none;
-  margin-bottom: 0.4rem;
-}
-.lead { margin: 0 0 1.1rem; color: var(--ink); }
-
-/* ---------- Liner note (about) ---------- */
-.liner__note {
-  margin: 0;
-  max-width: 60ch;
-  font-size: 1.16rem;
-  line-height: 1.68;
-  color: var(--ink);
-}
-/* Proper 2-line drop cap (sinks cleanly on Chrome/Safari; degrades to a
-   large inline plum initial elsewhere — never the fractional-float indent). */
-.liner__note::first-letter {
-  font-family: var(--display);
-  color: var(--plum);
-  -webkit-initial-letter: 2;
-  initial-letter: 2;
-  margin-right: 0.14em;
-}
-
-/* ---------- Find me (links) ---------- */
-.wires { list-style: none; margin: 0; padding: 0; }
-.wire {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.95rem 0.25rem;
-  border-top: 1px solid var(--line);
-  text-decoration: none;
-  color: var(--ink);
-  transition: color .18s ease, transform .18s ease;
-}
-.wires li:last-child .wire { border-bottom: 1px solid var(--line); }
-.wire__mark { width: 22px; height: 22px; flex: none; color: var(--muted); transition: color .18s ease; }
-.wire__label { font-weight: 600; font-size: 1.05rem; }
-.wire__id {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 0.82rem;
-  color: var(--muted);
-  transition: color .18s ease;
-}
-.wire:hover, .wire:focus-visible { color: var(--plum); transform: translateX(6px); outline: none; }
-.wire:hover .wire__mark, .wire:focus-visible .wire__mark,
-.wire:hover .wire__id, .wire:focus-visible .wire__id { color: var(--plum); }
-.wire:focus-visible { outline: 2px solid var(--plum); outline-offset: 3px; border-radius: 2px; }
-
-/* ---------- Music credits ---------- */
-.credit-label {
-  margin: 0 0 0.6rem;
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-.credits {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap; align-items: baseline;
-  font-size: 1.12rem;
-}
-.credits li { color: var(--ink); }
-.credits li:not(:last-child)::after {
-  content: "◇";
-  margin: 0 0.6rem;
-  color: var(--plum);
-  font-size: 0.7em;
-  vertical-align: 0.15em;
-}
-
-/* ---------- Food menu ---------- */
-.menu {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; gap: 0 2.5rem;
-}
-@media (min-width: 520px) { .menu { grid-template-columns: 1fr 1fr; } }
-.menu li {
-  display: flex; align-items: baseline; gap: 0.7rem;
-  padding: 0.6rem 0;
-  border-top: 1px solid var(--line);
-}
-.menu li::before {
-  content: "";
-  width: 6px; height: 6px; flex: none;
-  transform: translateY(0.35em) rotate(45deg);
-  background: var(--plum);
-}
-
-/* ---------- Photos (contact sheet) ---------- */
-.sheet {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;
-}
-.sheet__frame {
-  display: block;
-  aspect-ratio: 1 / 1;
-  border-radius: 3px;
-  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.65);
-}
-.sheet__frame:focus-visible, .met__frame:focus-visible { outline: 2px solid var(--plum); outline-offset: 3px; }
-
-/* "Met Hiromi" feature in the Music block */
-.met { margin: 1.6rem 0 0; }
-.met__frame {
-  display: block;
-  aspect-ratio: 4 / 3;
-  border-radius: 4px;
-  box-shadow: 0 16px 34px -16px rgba(0, 0, 0, 0.7);
-}
-.met figcaption {
-  margin-top: 0.65rem;
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-/* Duotone photos — a true two-tone (whites map into plum, not washed) that
-   blooms to full color on hover/focus (the signature interaction). */
-/* isolate: the duotone blends within the photo only — never against a
-   3D-transformed ancestor (the parallax deck), which flickers on hover. */
-.shot { position: relative; overflow: hidden; background: #C9A2F0; isolation: isolate; }
-.shot img {
-  display: block; width: 100%; height: 100%; object-fit: cover;
-  object-position: 50% 42%;
-  filter: grayscale(1) contrast(1.12) brightness(1.04);
-  mix-blend-mode: multiply;
-  transition: filter .5s ease;
-}
-.shot::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(155deg, rgba(18, 8, 30, 0.6) 0%, rgba(123, 63, 181, 0) 70%);
-  mix-blend-mode: multiply;
-  opacity: 1;
-  transition: opacity .5s ease;
-}
-.shot:hover img, .shot:focus-within img { filter: none; mix-blend-mode: normal; }
-.shot:hover::after, .shot:focus-within::after { opacity: 0; }
-
-/* ---------- Exam record (ledger) ---------- */
-.ledger__masthead { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
-.ledger__figure {
-  font-family: var(--display);
-  font-size: clamp(2.6rem, 11vw, 3.6rem);
-  line-height: 0.9;
-  letter-spacing: 0.01em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-.ledger__slash { color: var(--plum); margin: 0 0.08em; }
-.ledger__caption { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
-
-.ledger__tier { margin-top: 1.8rem; }
-.ledger__tierhead {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
-  padding-bottom: 0.5rem;
-}
-.ledger__cred { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.01em; color: var(--ink); }
-.ledger__abbr { color: var(--plum); }
-.ledger__prog { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-
-.ledger__list { list-style: none; margin: 0; padding: 0; }
-.rec {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.78rem 0;
-  border-top: 1px solid var(--line);
-}
-.rec__mark {
-  width: 11px; height: 11px; border-radius: 50%;
-  background: transparent; border: 1.5px solid var(--muted);
-}
-.rec--passed .rec__mark { background: var(--plum); border-color: var(--plum); }
-.rec--scheduled .rec__mark {
-  background: var(--pop); border-color: var(--pop);
-  box-shadow: 0 0 11px 0 var(--pop); /* the single deliberate neon moment */
-}
-.rec__name { font-weight: 500; }
-.rec--notStarted .rec__name { color: var(--muted); }
-.rec__stat {
-  font-family: var(--mono); font-size: 0.8rem; color: var(--muted); text-align: right;
-  display: flex; flex-direction: column; align-items: flex-end; gap: 2px; line-height: 1.25;
-}
-.rec--scheduled .rec__stat { color: var(--pop); }
-.rec--passed .rec__stat { color: var(--plum); }
-.rec__date {
-  font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--muted); font-variant-numeric: tabular-nums;
-}
-
-/* ---------- Footer ---------- */
-.pressing {
-  margin-top: 3.4rem; padding-top: 1.5rem;
-  border-top: 1px solid var(--line);
-  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem;
-  font-family: var(--mono); font-size: 0.76rem; color: var(--muted);
-}
-
-/* ---------- Lightbox ---------- */
-.lightbox {
-  position: fixed; inset: 0; z-index: 50;
-  background: rgba(10, 6, 16, 0.94);
-  display: flex; align-items: center; justify-content: center; padding: 5vw;
-}
-.lightbox[hidden] { display: none; }
-.lightbox__img {
-  max-width: 100%; max-height: 88vh; border-radius: 4px;
-  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
-}
-.lightbox__close {
-  position: absolute; top: 1.1rem; right: 1.2rem;
-  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.05em;
-  background: transparent; color: var(--ink);
-  border: 1px solid var(--line); border-radius: 2px;
-  padding: 0.5rem 0.9rem; cursor: pointer;
-  transition: border-color .18s ease, color .18s ease;
-}
-.lightbox__close:hover { border-color: var(--plum); color: var(--plum); }
-
-/* ---------- Motion: one authored moment on the cover ---------- */
-@media (prefers-reduced-motion: no-preference) {
-  .cover__cat { animation: fade 1.1s ease both; }
-  .cover__now { animation: fade 1.1s ease both .4s; }
-  .cover__name span { animation: riseWipe .9s cubic-bezier(.16, 1, .3, 1) both; }
-  .cover__name span:nth-child(1) { animation-delay: .05s; }
-  .cover__name span:nth-child(2) { animation-delay: .15s; }
-  .cover__portrait { animation: rise 1s cubic-bezier(.2, .75, .2, 1) both .18s; }
-}
-@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes riseWipe {
-  from { opacity: 0; transform: translateY(22px); clip-path: inset(0 100% -14% 0); }
-  60%  { opacity: 1; }
-  to   { opacity: 1; transform: none;            clip-path: inset(0 -4% -14% 0); }
-}
-
-/* ---------- Aesthetic pass: aura, spines, gatefold ---------- */
-
-/* Aura glow bleeding from behind the turntable */
-.deck::before {
-  content: ""; position: absolute; z-index: 0;
-  top: -20%; left: -14%; width: 150%; height: 150%;
-  background: radial-gradient(circle at 58% 46%, rgba(199, 125, 255, 0.30), rgba(199, 125, 255, 0) 60%);
-  filter: blur(6px); pointer-events: none;
-}
-
-/* Record label ring */
-.vinyl__label { box-shadow: 0 0 0 2px rgba(22, 10, 32, 0.55), 0 0 0 3px rgba(230, 220, 245, 0.15); }
-
-/* Record-sleeve vertical spines framing the wide desktop margins */
-.spine { display: none; }
-@media (min-width: 1180px) {
-  .spine {
-    display: block; position: fixed; top: 50%; z-index: 4;
-    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.34em;
-    color: var(--muted); white-space: nowrap; pointer-events: none; writing-mode: vertical-rl;
-  }
-  .spine--l { left: clamp(14px, 4vw, 48px); transform: translateY(-50%) rotate(180deg); }
-  .spine--r { right: clamp(14px, 4vw, 48px); transform: translateY(-50%); }
-}
-
-/* Bigger hero name + gatefold stagger on wide screens */
-@media (min-width: 1100px) {
-  .cover__name { font-size: clamp(4rem, 8vw, 6.4rem); }
-  .block:nth-of-type(even) { margin-left: 8%; }
-  .photos { width: 116%; margin-left: -8%; }
-}
-
-/* ---------- Dynamic pass: cued-up cover, scroll choreography, ambiance ---------- */
-@media (prefers-reduced-motion: no-preference) {
-
-  /* Cover — the record is cued up onto the platter on load.
-     `backwards` (not `both`) so the resting transform returns afterward and the
-     hover slide-out keeps working. */
-  .js .vinyl { animation: cue 1.15s cubic-bezier(.16, 1, .3, 1) backwards .3s; }
-
-  /* Living ambiance — the aura breathes and the "up next" light pulses. */
-  .deck::before { animation: breathe 6.5s ease-in-out infinite; }
-  .rec--scheduled .rec__mark { animation: pulse 2.4s ease-in-out infinite; }
-
-  /* Scroll choreography — sections wipe in like a marquee light; rows tick in
-     like a tracklist. Gated on `.js` so no-JS visitors see everything at once. */
-  .js .marquee {
-    opacity: 0; clip-path: inset(0 100% -14% -6%);
-    transition: clip-path .82s cubic-bezier(.16, 1, .3, 1), opacity .45s ease;
-  }
-  .js .block.in .marquee { opacity: 1; clip-path: inset(0 -6% -14% -6%); }
-
-  .js .block > :is(.liner__note, .lead, .credit-label, .met, #exam-tracker),
-  .js .block .wires li, .js .block .credits li, .js .block .menu li, .js .block .sheet li {
-    opacity: 0; transform: translateY(18px);
-    transition: opacity .5s ease, transform .7s cubic-bezier(.16, 1, .3, 1);
-  }
-  .js .block.in > :is(.liner__note, .lead, .credit-label, .met, #exam-tracker),
-  .js .block.in .wires li, .js .block.in .credits li, .js .block.in .menu li, .js .block.in .sheet li {
-    opacity: 1; transform: none;
-  }
-
-  /* Capped stagger for list rows. */
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(1) { transition-delay: .04s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(2) { transition-delay: .09s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(3) { transition-delay: .14s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(4) { transition-delay: .19s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(5) { transition-delay: .24s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(6) { transition-delay: .29s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(7) { transition-delay: .34s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(8) { transition-delay: .39s; }
-  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li):nth-child(n+9) { transition-delay: .44s; }
-}
-
-/* Cover parallax — the deck tilts toward the cursor on fine-pointer devices. */
-@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  /* NB: no `transform-style: preserve-3d` — it makes the vinyl and portrait
-     coplanar in 3D, so z-index stops ordering them and the GPU z-fights
-     (flicker) in their overlap. Flat keeps normal stacking and the tilt. */
-  .deck {
-    transform: perspective(820px) rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg));
-    transition: transform .3s ease;
-  }
-  .deck::before { transform: translate(var(--px, 0), var(--py, 0)); transition: transform .3s ease; }
-}
-
-@keyframes cue {
-  from { opacity: 0; transform: translateX(58%) rotate(-10deg) scale(.9); }
-  55%  { opacity: 1; }
-  to   { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
-}
-@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .62; } }
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 9px 0 var(--pop); }
-  50%      { box-shadow: 0 0 18px 3px var(--pop); }
-}
+@media (min-width: 1100px) { .sleeve { max-width: 840px; } }
 
 /* ================================================================
-   Pro pass — living aurora, elevated hero, premium micro-interactions
+   Ambient layers — canvas groove field, aurora, spine
    ================================================================ */
 
-/* ---- Living aurora: a slow stage light drifting behind the sleeve ---- */
+.stage {
+  position: fixed; inset: 0; z-index: -1;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
 .aurora {
   position: fixed; inset: -25%; z-index: -2; pointer-events: none; overflow: hidden;
   contain: layout paint;
@@ -565,10 +107,171 @@ a { color: inherit; }
   background: radial-gradient(circle at 50% 50%, rgba(255, 61, 110, 0.24), rgba(255, 61, 110, 0) 68%);
 }
 
-/* ---- Hero: name + status grouped so the deck can't stretch them apart ---- */
-.cover__head { display: flex; flex-direction: column; gap: 0.9rem; }
+.spine { display: none; }
+@media (min-width: 1180px) {
+  .spine {
+    display: block; position: fixed; top: 50%; z-index: 4;
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.34em;
+    color: var(--muted); white-space: nowrap; pointer-events: none; writing-mode: vertical-rl;
+  }
+  .spine--r { right: clamp(14px, 3vw, 40px); transform: translateY(-50%); }
+}
 
-/* ---- Hero: live status line ---- */
+/* ================================================================
+   Topbar — name, section nav with a sliding indicator, mobile progress
+   ================================================================ */
+
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+  height: var(--topbar-h);
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(.9rem, 4vw, 2rem);
+  background: rgba(16, 9, 24, 0.72);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--line);
+}
+.topbar__name {
+  flex: none;
+  font-family: var(--display); font-size: .95rem; letter-spacing: .04em;
+  text-transform: uppercase; text-decoration: none; color: var(--ink);
+  transition: color .18s ease;
+}
+.topbar__name:hover { color: var(--plum); }
+
+.topbar__now {
+  margin: 0; min-width: 0;
+  font-family: var(--mono); font-size: .74rem; letter-spacing: .04em;
+  color: var(--plum); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topbar__now[hidden] { display: none; }
+@media (max-width: 860px) { .topbar__now { display: none; } }
+
+/* Below this the six section names need every pixel, and the hero already says
+   the name in 100px type one scroll up. */
+@media (max-width: 560px) { .topbar__name { display: none; } }
+
+.topbar__nav { position: relative; margin-left: auto; min-width: 0; }
+.topbar__nav ul {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; gap: clamp(.6rem, 2vw, 1.4rem);
+  overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  /* Fades the last item rather than clipping it — the cue that it scrolls. */
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, #000 88%, transparent);
+}
+@media (min-width: 760px) {
+  .topbar__nav ul { -webkit-mask-image: none; mask-image: none; }
+}
+.topbar__nav ul::-webkit-scrollbar { display: none; }
+.topbar__nav a {
+  display: block; padding: .35rem 0;
+  font-family: var(--mono); font-size: .78rem; letter-spacing: .03em;
+  white-space: nowrap; text-decoration: none; color: var(--muted);
+  transition: color .2s ease;
+}
+.topbar__nav a:hover { color: var(--ink); }
+.topbar__nav a[aria-current="true"] { color: var(--plum); }
+
+/* One indicator slides between items rather than each item owning a highlight. */
+.topbar__ind {
+  position: absolute; bottom: -2px; left: 0; height: 2px;
+  width: var(--ind-w, 0); transform: translateX(var(--ind-x, 0));
+  background: var(--plum); box-shadow: 0 0 10px 0 var(--plum);
+  opacity: 0; pointer-events: none;
+  transition: transform .42s var(--ease), width .42s var(--ease), opacity .3s ease;
+}
+.topbar__ind.is-on { opacity: 1; }
+
+/* Mobile / narrow: a hairline progress bar pinned under the topbar. */
+.topbar__bar {
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  pointer-events: none;
+}
+.topbar__bar i {
+  display: block; height: 100%; width: calc(var(--prog, 0) * 100%);
+  background: linear-gradient(90deg, var(--plum-deep), var(--plum));
+}
+@media (min-width: 1180px) { .topbar__bar { display: none; } }
+
+/* ================================================================
+   Tonearm rail — the needle rides one side of the record as you scroll
+   ================================================================ */
+
+.rail { display: none; }
+@media (min-width: 1180px) {
+  .rail {
+    display: block; position: fixed; z-index: 4;
+    left: clamp(18px, 3.4vw, 52px); top: 24vh; height: 54vh; width: 34px;
+    pointer-events: none;
+  }
+  .rail__track {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, transparent, var(--line) 8%, var(--line) 92%, transparent);
+  }
+  .rail__ticks { list-style: none; margin: 0; padding: 0; }
+  .rail__ticks li {
+    position: absolute; left: 0; top: var(--at, 0%);
+    width: 7px; height: 1px; background: var(--line);
+    transition: width .3s var(--ease), background-color .3s ease;
+  }
+  .rail__ticks li.is-on { width: 15px; background: var(--plum); }
+
+  /* The arm: a short beam ending in a needle, pivoting slightly as it tracks
+     inward — the way a real tonearm does across a side. */
+  .rail__arm {
+    position: absolute; left: 0; top: 0; width: 26px; height: 1px;
+    background: linear-gradient(90deg, var(--muted), var(--plum));
+    transform-origin: 0 50%;
+    transform: translateY(calc(var(--prog, 0) * 54vh)) rotate(calc(-7deg + var(--prog, 0) * 13deg));
+    transition: transform .18s linear;
+  }
+  .rail__arm i {
+    position: absolute; right: -3px; top: 50%;
+    width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
+    background: var(--plum); box-shadow: 0 0 12px 0 var(--plum);
+  }
+}
+
+/* ================================================================
+   Cover — name, live status, and the playable record
+   ================================================================ */
+
+/* The cover owns the first screen — it's the thesis, and the record needs the
+   room to be worth grabbing. */
+/* Sleeve copy runs to the edges of the cover: catalog line at the top, title
+   block through the middle, status strip along the foot. */
+.cover { display: grid; gap: 1.6rem; scroll-margin-top: var(--topbar-h); }
+/* Only claim the whole screen where there's room for it to read as a sleeve.
+   On a phone the same rule just opens holes between the name and the record. */
+@media (min-height: 620px) and (min-width: 560px) {
+  .cover {
+    min-height: calc(100svh - var(--topbar-h) - clamp(3rem, 9vw, 6rem));
+    align-content: space-between;
+  }
+}
+.cover__cat {
+  grid-column: 1 / -1; margin: 0;
+  font-family: var(--mono); font-size: .8rem; letter-spacing: .02em; color: var(--muted);
+}
+.cover__head { display: flex; flex-direction: column; gap: 0.9rem; align-self: center; }
+.cover__foot {
+  grid-column: 1 / -1;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem 2rem;
+  flex-wrap: wrap;
+  padding-top: 1.1rem; border-top: 1px solid var(--line);
+}
+.cover__name {
+  margin: 0;
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(3.4rem, 17vw, 7.6rem);
+  line-height: .84; letter-spacing: -0.02em; text-transform: uppercase;
+  color: var(--ink);
+}
+.cover__name span { display: block; }
+.cover__name span:last-child { color: var(--plum); }
+
 .cover__now {
   margin: 0;
   display: inline-flex; align-items: center; gap: 0.55rem;
@@ -579,43 +282,516 @@ a { color: inherit; }
   width: 8px; height: 8px; border-radius: 50%; flex: none;
   background: var(--plum); box-shadow: 0 0 10px 0 var(--plum);
 }
+.cover__now--fast .cover__now-dot { background: var(--pop); box-shadow: 0 0 12px 0 var(--pop); }
+.cover__now--fast .cover__now-text { color: var(--pop); }
 
-/* ---- Hero: deeper material on the record + portrait ---- */
-.cover__portrait {
-  box-shadow: 0 34px 66px -22px rgba(0, 0, 0, 0.82), 0 0 0 1px rgba(243, 236, 246, 0.05);
+/* ---- The deck ---- */
+.deck { position: relative; width: min(240px, 66%); justify-self: start; }
+.deck::before {
+  content: ""; position: absolute; z-index: 0;
+  top: -20%; left: -18%; width: 150%; height: 150%;
+  background: radial-gradient(circle at 50% 46%, rgba(199, 125, 255, 0.30), rgba(199, 125, 255, 0) 60%);
+  filter: blur(6px); pointer-events: none;
 }
-.vinyl__disc {
+
+.record {
+  position: relative; z-index: 1;
+  display: block; width: 100%; aspect-ratio: 1;
+  padding: 0; border: 0; border-radius: 50%; background: none;
+  /* `pan-y`, not `none`: a vertical swipe over the record still scrolls the
+     page. It's the biggest thing on a phone screen — trapping the scroll
+     there would be a trap, not an interaction. Sideways drags still spin. */
+  cursor: grab; touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.record.is-grabbed { cursor: grabbing; }
+.record:focus-visible { outline-offset: 6px; }
+
+.record__disc {
+  position: absolute; inset: 0; border-radius: 50%;
+  display: grid; place-items: center;
+  background: repeating-radial-gradient(circle at 50% 50%, #0b0711 0 1.3px, #1b1327 1.3px 3.2px);
   box-shadow: 0 22px 46px -12px rgba(0, 0, 0, 0.9),
               inset 0 0 0 1px rgba(255, 255, 255, 0.04),
               inset 0 0 34px rgba(0, 0, 0, 0.8);
+  transform: rotate(var(--angle, 0deg));
+  will-change: transform;
 }
-/* a soft top gloss sweeping the pressing */
-.vinyl__disc::after {
+/* sheen sweeping the pressing — rotates with the disc, so you can see it move */
+.record__disc::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 210deg, transparent 0 42%, rgba(255, 255, 255, .07) 50%, transparent 58% 100%);
+}
+.record__disc::after {
   content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
   background: radial-gradient(120% 70% at 32% 12%, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 46%);
 }
 
-/* ---- Premium micro-interactions ---- */
-.wire__mark { transition: color .18s ease, transform .3s cubic-bezier(.16, 1, .3, 1); }
-.wire:hover .wire__mark, .wire:focus-visible .wire__mark { transform: scale(1.16) rotate(-6deg); }
+/* The label counter-rotates so it stays upright and readable — it carries the
+   cued track name now, so it has to be legible while the grooves spin. */
+.record__label {
+  position: relative; z-index: 1;
+  width: 46%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 40% 34%, var(--plum) 0%, var(--plum-deep) 100%);
+  box-shadow: 0 0 0 2px rgba(22, 10, 32, 0.55), 0 0 0 3px rgba(230, 220, 245, 0.15);
+  color: var(--ground);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12em;
+  text-align: center; padding: 0 8%;
+  transform: rotate(calc(-1 * var(--angle, 0deg)));
+}
+.record__title {
+  font-family: var(--display); font-size: clamp(.62rem, 1.5vw, .92rem);
+  line-height: .95; text-transform: uppercase; overflow-wrap: anywhere;
+}
+.record__side { font-family: var(--mono); font-size: clamp(.36rem, .82vw, .52rem); opacity: .82; }
+.record.is-cued .record__label { animation: cueFlash .5s ease; }
 
-.sheet__frame, .met__frame { transition: transform .4s cubic-bezier(.16, 1, .3, 1), box-shadow .4s ease; }
+.deck__hint {
+  margin: 0;
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; color: var(--muted);
+  opacity: .85; transition: opacity .4s ease;
+}
+.deck__hint::after { content: " \2197"; color: var(--plum); }
+.cover.is-used .deck__hint { opacity: 0; }
+
+@media (min-width: 560px) {
+  .cover { grid-template-columns: 1fr auto; column-gap: 1.5rem; }
+  .cover__head { grid-row: 2; }
+  .deck { grid-row: 2; width: 210px; align-self: center; }
+}
+@media (min-width: 1100px) { .deck { width: 250px; } }
+
+/* ================================================================
+   Blocks + marquee headers
+   ================================================================ */
+
+.block {
+  margin-top: 2.9rem;
+  padding-top: 2.9rem;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: calc(var(--topbar-h) + 1rem);
+}
+.marquee {
+  counter-increment: track;
+  margin: 0 0 1.15rem;
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(1.7rem, 7vw, 2.55rem);
+  line-height: 1; letter-spacing: -0.01em; text-transform: uppercase;
+  color: var(--ink);
+  text-shadow: 0 0 24px rgba(199, 125, 255, 0.32);
+}
+.marquee::before {
+  content: "A" counter(track);
+  display: block;
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em;
+  color: var(--plum); text-shadow: none; margin-bottom: 0.4rem;
+}
+.lead { margin: 0 0 1.1rem; color: var(--ink); }
+
+/* Equalizer next to the Music header — driven by the record's real speed. */
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: .58em; margin-left: .55rem; }
+.eq i {
+  width: 3px; height: 100%; background: var(--plum);
+  transform-origin: bottom; transform: scaleY(var(--h, .3));
+  transition: transform .09s linear;
+}
+
+/* ================================================================
+   Liner note (about)
+   ================================================================ */
+
+.liner__note {
+  margin: 0; max-width: 60ch; padding-bottom: .15em;
+  font-size: 1.16rem; line-height: 1.68; color: var(--ink);
+}
+.liner__note::first-letter {
+  font-family: var(--display); color: var(--plum);
+  -webkit-initial-letter: 2; initial-letter: 2;
+  margin-right: 0.14em;
+}
+
+/* ================================================================
+   Find me (links)
+   ================================================================ */
+
+.wires { list-style: none; margin: 0; padding: 0; }
+.wire {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.95rem 0.25rem;
+  border-top: 1px solid var(--line);
+  text-decoration: none; color: var(--ink);
+  /* `translate` carries the magnet so it can't fight the hover `transform` */
+  translate: var(--magx, 0) var(--magy, 0);
+  transition: color .18s ease, transform .18s ease, translate .3s var(--ease);
+}
+.wires li:last-child .wire { border-bottom: 1px solid var(--line); }
+.wire__mark {
+  width: 22px; height: 22px; flex: none; color: var(--muted);
+  transition: color .18s ease, transform .3s var(--ease);
+}
+.wire__label { font-weight: 600; font-size: 1.05rem; }
+.wire__id {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 0.82rem; color: var(--muted);
+  transition: color .18s ease;
+}
+.wire:hover, .wire:focus-visible { color: var(--plum); transform: translateX(6px); }
+.wire:hover .wire__mark, .wire:focus-visible .wire__mark { color: var(--plum); transform: scale(1.16) rotate(-6deg); }
+.wire:hover .wire__id, .wire:focus-visible .wire__id { color: var(--plum); }
+
+/* ================================================================
+   Music credits — each name cues itself onto the record
+   ================================================================ */
+
+.credit-label {
+  margin: 0 0 0.6rem;
+  font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.04em; color: var(--muted);
+}
+.credits {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  font-size: 1.12rem;
+}
+.credits li:not(:last-child)::after {
+  content: "◇";
+  margin: 0 0.6rem; color: var(--plum); font-size: 0.7em; vertical-align: 0.15em;
+}
+.credit {
+  padding: 0; border: 0; background: none;
+  font: inherit; color: var(--ink); cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color .18s ease, border-color .18s ease;
+}
+.credit:hover { color: var(--plum); border-bottom-color: var(--plum); }
+.credit[aria-pressed="true"] { color: var(--plum); border-bottom-color: var(--plum); }
+
+/* ================================================================
+   Food menu
+   ================================================================ */
+
+.menu { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 2.5rem; }
+@media (min-width: 520px) { .menu { grid-template-columns: 1fr 1fr; } }
+.menu li {
+  display: flex; align-items: baseline; gap: 0.7rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--line);
+}
+.menu li::before {
+  content: ""; width: 6px; height: 6px; flex: none;
+  transform: translateY(0.35em) rotate(45deg);
+  background: var(--plum);
+}
+
+/* ================================================================
+   Photos — duotone that resolves to colour under the pointer
+   ================================================================ */
+
+.sheet {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;
+}
+.sheet__frame {
+  display: block; aspect-ratio: 1 / 1; border-radius: 3px;
+  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.65);
+  transition: transform .4s var(--ease), box-shadow .4s ease;
+}
 .sheet__frame:hover, .met__frame:hover {
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 26px 48px -16px rgba(0, 0, 0, 0.72);
 }
 
+.met { margin: 1.6rem 0 0; }
+.met__frame {
+  display: block; aspect-ratio: 4 / 3; border-radius: 4px;
+  box-shadow: 0 16px 34px -16px rgba(0, 0, 0, 0.7);
+  transition: transform .4s var(--ease), box-shadow .4s ease;
+}
+.met figcaption {
+  margin-top: 0.65rem;
+  font-family: var(--mono); font-size: 0.8rem; color: var(--muted);
+}
+
+/* True two-tone: whites map into plum via multiply rather than washing out.
+   `isolate` keeps the blend inside the photo. */
+.shot {
+  position: relative; overflow: hidden; background: #C9A2F0; isolation: isolate;
+  transition: --r .4s ease; /* the spotlight eases open and closed */
+}
+.shot img {
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%;
+  filter: grayscale(1) contrast(1.12) brightness(1.04);
+  mix-blend-mode: multiply;
+}
+.shot::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: linear-gradient(155deg, rgba(18, 8, 30, 0.6) 0%, rgba(123, 63, 181, 0) 70%);
+  mix-blend-mode: multiply;
+  transition: opacity .5s ease;
+}
+/* Registered so the spotlight can ease open and closed — a bare custom property
+   can't be transitioned. Browsers without @property just snap, which is fine. */
+@property --r {
+  syntax: "<length-percentage>";
+  inherits: true; /* set on .shot by the pointer handler, read by the child img */
+  initial-value: 0px;
+}
+
+/* The colour copy sits on top, revealed through a spotlight that follows the
+   pointer — the duotone doesn't switch off, it gets pushed back.
+   `.shot img` above would otherwise grayscale this copy too, hence the
+   element-plus-class selector to outrank it. */
+.shot img.shot__color {
+  position: absolute; inset: 0; z-index: 1;
+  filter: none; mix-blend-mode: normal;
+  -webkit-mask-image: radial-gradient(circle var(--r) at var(--mx, 50%) var(--my, 50%), #000 42%, transparent 78%);
+  mask-image: radial-gradient(circle var(--r) at var(--mx, 50%) var(--my, 50%), #000 42%, transparent 78%);
+}
+.shot:hover::after, .shot:focus-within::after { opacity: .25; }
+/* Keyboard and touch get the whole photo, since there's no pointer to follow. */
+.shot:focus-within img.shot__color { --r: 150%; }
+@media (hover: none) { .shot img.shot__color { --r: 150%; } }
+
+/* ================================================================
+   Exam record (ledger) — nine exams, nine tracks
+   ================================================================ */
+
+.ledger__masthead { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
+.ledger__figure {
+  font-family: var(--display);
+  font-size: clamp(2.6rem, 11vw, 3.6rem);
+  line-height: 0.9; letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.ledger__slash { color: var(--plum); margin: 0 0.08em; }
+.ledger__caption { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
+
+.ledger__tier { margin-top: 1.8rem; }
+.ledger__tierhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding-bottom: 0.5rem;
+}
+.ledger__cred { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.01em; color: var(--ink); }
+.ledger__abbr { color: var(--plum); }
+.ledger__prog { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.ledger__list { list-style: none; margin: 0; padding: 0; }
+.rec { border-top: 1px solid var(--line); }
+.rec__cue {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.85rem;
+  width: 100%; padding: 0.78rem 0.25rem; margin: 0;
+  border: 0; background: none; font: inherit; text-align: left; color: inherit; cursor: pointer;
+  transition: background-color .18s ease, padding-left .25s var(--ease);
+}
+.rec__cue:hover { background: rgba(199, 125, 255, .07); padding-left: .7rem; }
+.rec__cue[aria-pressed="true"] { background: rgba(199, 125, 255, .11); padding-left: .7rem; }
+.rec__mark {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: transparent; border: 1.5px solid var(--muted);
+}
+.rec--passed .rec__mark { background: var(--plum); border-color: var(--plum); }
+.rec--scheduled .rec__mark {
+  background: var(--pop); border-color: var(--pop);
+  box-shadow: 0 0 11px 0 var(--pop); /* the one neon moment in the ledger */
+}
+.rec__name { font-weight: 500; }
+.rec--notStarted .rec__name { color: var(--muted); }
+.rec__stat {
+  font-family: var(--mono); font-size: 0.8rem; color: var(--muted); text-align: right;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px; line-height: 1.25;
+}
+.rec--scheduled .rec__stat { color: var(--pop); }
+.rec--passed .rec__stat { color: var(--plum); }
+.rec__date {
+  font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+/* ================================================================
+   Footer
+   ================================================================ */
+
+.pressing {
+  margin-top: 3.4rem; padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem;
+  font-family: var(--mono); font-size: 0.76rem; color: var(--muted);
+}
+
+/* ================================================================
+   Lightbox
+   ================================================================ */
+
+.lightbox {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(10, 6, 16, 0.94);
+  display: flex; align-items: center; justify-content: center; padding: 5vw;
+}
+.lightbox[hidden] { display: none; }
+.lightbox__img {
+  max-width: 100%; max-height: 88vh; border-radius: 4px;
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+}
+.lightbox__close, .lightbox__nav {
+  position: absolute;
+  font-family: var(--mono); background: transparent; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 2px; cursor: pointer;
+  transition: border-color .18s ease, color .18s ease;
+}
+.lightbox__close { top: 1.1rem; right: 1.2rem; font-size: 0.8rem; letter-spacing: 0.05em; padding: 0.5rem 0.9rem; }
+.lightbox__nav {
+  top: 50%; transform: translateY(-50%);
+  width: 44px; height: 60px; font-size: 1.6rem; line-height: 1;
+}
+.lightbox__nav--prev { left: 1.2rem; }
+.lightbox__nav--next { right: 1.2rem; }
+.lightbox__close:hover, .lightbox__nav:hover { border-color: var(--plum); color: var(--plum); }
+
+/* ================================================================
+   Needle cursor — fine pointers only; the OS cursor is never hidden
+   ================================================================ */
+
+.needle { display: none; }
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .needle {
+    display: block; position: fixed; top: 0; left: 0; z-index: 60;
+    width: 26px; height: 26px; margin: -13px 0 0 -13px;
+    border: 1px solid rgba(199, 125, 255, .55); border-radius: 50%;
+    pointer-events: none; opacity: 0;
+    transform: translate(var(--nx, -100px), var(--ny, -100px)) scale(var(--ns, 1));
+    transition: opacity .3s ease, transform .1s linear, border-color .25s ease, background-color .25s ease;
+  }
+  .needle.is-on { opacity: 1; }
+  .needle.is-over { --ns: 1.7; background: rgba(199, 125, 255, .1); border-color: var(--plum); }
+  .needle.is-record { --ns: .55; background: var(--plum); border-color: var(--plum); }
+}
+
+/* ================================================================
+   Motion — everything below is gated on the visitor allowing it
+   ================================================================ */
+
 @media (prefers-reduced-motion: no-preference) {
+
+  /* ---- Load sequence: cueing up a record ---- */
+  .js .cover__cat  { animation: fade .9s ease both .05s; }
+  .js .cover__name span { animation: riseWipe .9s var(--ease) both; }
+  .js .cover__name span:nth-child(1) { animation-delay: .30s; }
+  .js .cover__name span:nth-child(2) { animation-delay: .42s; }
+  .js .cover__now  { animation: fade .9s ease both .75s; }
+  .js .deck        { animation: cue 1.15s var(--ease) backwards .18s; }
+  .js .deck__hint  { animation: fade .9s ease both 1.15s; }
+  .js .topbar      { animation: fade .8s ease both .95s; }
+  .js .rail        { animation: fade .9s ease both 1.05s; }
+
+  /* ---- Ambient loops ---- */
   .aurora span:nth-child(1) { animation: aur1 38s ease-in-out infinite; }
   .aurora span:nth-child(2) { animation: aur2 48s ease-in-out infinite; }
   .aurora span:nth-child(3) { animation: aur3 42s ease-in-out infinite; }
+  .deck::before { animation: breathe 6.5s ease-in-out infinite; }
   .cover__now-dot { animation: nowdot 2s ease-in-out infinite; }
+  .rec--scheduled .rec__mark { animation: pulse 2.4s ease-in-out infinite; }
+
+  /* ---- Scroll choreography: each section reveals in its own register ---- */
+
+  /* headers wipe in like a marquee light */
+  .js .marquee {
+    opacity: 0; clip-path: inset(0 100% -14% -6%);
+    transition: clip-path .82s var(--ease), opacity .45s ease;
+  }
+  .js .block.in .marquee { opacity: 1; clip-path: inset(0 -6% -14% -6%); }
+
+  /* liner note: types itself in, one line at a time */
+  .js .liner__note { clip-path: inset(0 0 100% 0); }
+  .js .block.in .liner__note {
+    animation: typeLines calc(var(--lines, 6) * .11s) steps(var(--lines, 6), jump-start) both .18s;
+  }
+
+  /* generic risers for the prose bits */
+  .js .block > :is(.lead, .credit-label, .met, #exam-tracker) {
+    opacity: 0; transform: translateY(18px);
+    transition: opacity .5s ease, transform .7s var(--ease);
+  }
+  .js .block.in > :is(.lead, .credit-label, .met, #exam-tracker) { opacity: 1; transform: none; }
+
+  /* links tick in like a tracklist */
+  .js .wires li { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .7s var(--ease); }
+  .js .block.in .wires li { opacity: 1; transform: none; }
+
+  /* credits deal in like cards off a deck */
+  .js .credits li { opacity: 0; transform: translateY(14px) rotate(-2.5deg); transform-origin: left bottom; transition: opacity .45s ease, transform .65s var(--ease); }
+  .js .block.in .credits li { opacity: 1; transform: none; }
+
+  /* menu items stamp down */
+  .js .menu li { opacity: 0; transform: scale(1.06); transition: opacity .34s ease, transform .44s cubic-bezier(.3, 1.5, .5, 1); }
+  .js .block.in .menu li { opacity: 1; transform: none; }
+
+  /* contact sheet develops */
+  .js .sheet li { opacity: 0; transform: scale(.9); transition: opacity .55s ease, transform .75s var(--ease); }
+  .js .block.in .sheet li { opacity: 1; transform: none; }
+
+  /* ledger rows stamp in */
+  .js .rec { opacity: 0; transform: translateY(12px); transition: opacity .4s ease, transform .55s var(--ease); }
+  .js .block.in .rec { opacity: 1; transform: none; }
+
+  /* one stagger ramp for every list that reveals */
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(1) { transition-delay: .04s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(2) { transition-delay: .09s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(3) { transition-delay: .14s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(4) { transition-delay: .19s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(5) { transition-delay: .24s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(6) { transition-delay: .29s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(7) { transition-delay: .34s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(8) { transition-delay: .39s; }
+  .js .block.in :is(.wires li, .credits li, .menu li, .sheet li, .rec):nth-child(n+9) { transition-delay: .44s; }
 }
 
-@keyframes aur1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(7vmax, 5vh) scale(1.12); } }
-@keyframes aur2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-6vmax, 7vh) scale(0.92); } }
-@keyframes aur3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(5vw, -6vh); } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes riseWipe {
+  from { opacity: 0; transform: translateY(22px); clip-path: inset(0 100% -14% 0); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: none;            clip-path: inset(0 -4% -14% 0); }
+}
+@keyframes cue {
+  from { opacity: 0; transform: translateX(46%) rotate(-12deg) scale(.86); }
+  55%  { opacity: 1; }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes typeLines { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+@keyframes cueFlash {
+  0%   { box-shadow: 0 0 0 2px rgba(22, 10, 32, .55), 0 0 0 3px rgba(230, 220, 245, .15), 0 0 0 0 var(--plum); }
+  40%  { box-shadow: 0 0 0 2px rgba(22, 10, 32, .55), 0 0 0 3px rgba(230, 220, 245, .55), 0 0 22px 6px rgba(199, 125, 255, .55); }
+  100% { box-shadow: 0 0 0 2px rgba(22, 10, 32, .55), 0 0 0 3px rgba(230, 220, 245, .15), 0 0 0 0 rgba(199, 125, 255, 0); }
+}
+@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .62; } }
 @keyframes nowdot {
   0%, 100% { opacity: 1; box-shadow: 0 0 10px 0 var(--plum); }
   50%      { opacity: 0.45; box-shadow: 0 0 4px 0 var(--plum); }
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 9px 0 var(--pop); }
+  50%      { box-shadow: 0 0 18px 3px var(--pop); }
+}
+@keyframes aur1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(7vmax, 5vh) scale(1.12); } }
+@keyframes aur2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-6vmax, 7vh) scale(0.92); } }
+@keyframes aur3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(5vw, -6vh); } }
+
+/* ================================================================
+   Reduced motion — everything present, nothing moving on its own.
+   Dragging the record still works: the visitor asked for that one.
+   ================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { opacity: 0.035; }
+  .stage { display: none; }
+  .aurora span { animation: none !important; }
+  .rail__arm { transition: none; }
+  .topbar__ind { transition: none; }
+}
+
+/* ================================================================
+   Wide screens — gatefold stagger
+   ================================================================ */
+
+@media (min-width: 1100px) {
+  .block:nth-of-type(even) { margin-left: 8%; }
+  .photos { width: 112%; margin-left: -6%; }
 }

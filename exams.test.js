@@ -45,6 +45,21 @@ test("examRowHTML omits date node when no date given", () => {
   assert.doesNotMatch(html, /rec__date/);
 });
 
+test("examRowHTML makes the row a cue button carrying the record label", () => {
+  const html = examRowHTML({ name: "MAS-II", status: "scheduled", note: "Up next" });
+  assert.match(html, /<button class="rec__cue"/);
+  assert.match(html, /data-cue="MAS-II"/);
+  assert.match(html, /data-sub="Up next"/);
+  // the accessible name has to say what pressing it does
+  assert.match(html, /aria-label="MAS-II — Up next\. Put on the record\."/);
+});
+
+test("examRowHTML escapes HTML in the cue button's attributes", () => {
+  const html = examRowHTML({ name: '"><script>', status: "passed" });
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /data-cue="&quot;&gt;/);
+});
+
 test("examRowHTML escapes HTML in user content", () => {
   const html = examRowHTML({ name: "<b>x</b>", status: "passed" });
   assert.doesNotMatch(html, /<b>x<\/b>/);
