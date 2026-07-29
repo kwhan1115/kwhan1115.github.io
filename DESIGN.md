@@ -4,7 +4,11 @@
 
 ## World
 
-**"Liner Notes" — a jazz LP record sleeve.** Grounded in Kyuwon's jazz-piano world (Hiromi, Evans, Kapustin, Garner). The page is a record sleeve: a bold marquee cover, a tinted duotone portrait, and the content laid out like sleeve copy — liner-note prose, a personnel/track credit list, a catalog-numbered menu, a contact-sheet photo strip, and the exam progress as a pressed-in ledger/scorecard. This replaces the prior generic dark-purple rounded-card link-in-bio. The old look is anti-reference: no uniform rounded cards, no accent-rail callouts, no glowing halos, no emoji.
+**"Liner Notes" — a jazz LP record sleeve, and the record plays.** Grounded in Kyuwon's jazz-piano world (Hiromi, Evans, Kapustin, Garner). The page is a record sleeve: a bold marquee cover, and the content laid out like sleeve copy — liner-note prose, a personnel/track credit list, a catalog-numbered menu, a contact-sheet photo strip, and the exam progress as a pressed-in ledger/scorecard.
+
+The vinyl is not decoration. It is the page's one interactive instrument: draggable, throwable, scratchable, and addressable from other sections — musician names and exam rows cue themselves onto its label. Everything else stays quiet around it.
+
+Two anti-references, both deliberate. The dark rounded-card link-in-bio this replaced: no uniform rounded cards, no accent-rail callouts, no glowing halos, no emoji. And the dev-portfolio template the interactivity was drawn from (`ttokkime.github.io/jamie-portfolio`, shown as a reference 2026-07-29): its interaction vocabulary was taken, its layout was not — no `01. / 02.` numbered eyebrows over a card grid, no constellation hero, no skills chips.
 
 ## Ground scene
 
@@ -21,9 +25,11 @@ A friend taps the Instagram bio link at night, in bed, on a phone, expecting som
 | `--muted` | `#A897B8` | secondary text — tinted mauve, never gray |
 | `--plum` | `#C77DFF` | Gengar accent, marks, links |
 | `--plum-deep` | `#7A3FB5` | deep plum fields, duotone shadow |
-| `--pop` | `#FF3D6E` | Gengar-eye magenta — spent ONCE (the "up next" exam) |
+| `--pop` | `#FF3D6E` | Gengar-eye magenta — reserved for the one thing that is *live right now* |
 
-Duotone photos: grayscale image tinted plum (shadows `#1E1230`, highlights `#D9B8FF`); reveal true color on hover/focus — the signature interaction.
+`--pop` rule: not "used once" but "means live." Two uses, one meaning — the up-next exam's marker, and the record's status when it is spun past its own speed (over 62 RPM, or backwards). Both are transient or singular; a third use would dilute it.
+
+Duotone photos: grayscale image tinted plum (shadows `#1E1230`, highlights `#D9B8FF`). True colour is revealed through a spotlight that **follows the pointer** across the photo — the duotone doesn't switch off, it gets pushed back. Keyboard focus and touch reveal the whole frame, since there is no pointer to follow.
 
 ## Type
 
@@ -35,19 +41,26 @@ Banned defaults deliberately avoided: Newsreader / Space Grotesk / Space Mono / 
 
 ## Structure & rules
 
-- **Cover-first.** One hero kicker (a catalog line) — a kicker is a system used once, NOT an eyebrow repeated over every section. Section headers are large Anton marquee titles, left-aligned, not small tracked eyebrows. The name pairs with a live `Now playing — Side A · 33⅓ RPM` status (pulsing plum cue dot) grouped beneath it, the record co-starring at right.
+- **Cover-first, and the cover owns the first screen** (where there's height for it — a phone gets natural stacking instead, since the same rule just opens holes there). Sleeve copy runs to the edges: catalog kicker at the top, the name block through the middle with the record beside it, a status strip along the foot carrying `Now playing — Side A · 33⅓ RPM` (pulsing plum cue dot) and the `drag the record` hint. The hint retires permanently the first time the record is touched. **No portrait** — removed 2026-07-29 at Kyuwon's request; the name takes the space.
+- **Persistent navigation.** A sticky topbar with the six section names and ONE indicator that slides to the section being read — not a per-item highlight. On desktop a tonearm rides the left margin, ticked at the scroll position where each section actually takes over, so the rail is this page's tracklist rather than an ornament. Narrow screens swap the rail for a hairline progress bar and drop the topbar name so the six sections fit.
+- **The record is a control, not an image.** A real `<button>`: drag to spin, throw for momentum, drag backwards to scratch, arrow keys to nudge, space to stop. Its label counter-rotates so it stays readable, because it carries content — musician names and exam rows cue onto it. `touch-action: pan-y`, never `none`: a vertical swipe over the biggest object on a phone screen must still scroll the page.
 - **No uniform cards.** Blocks are differentiated by role (liner prose / credit list / menu / contact sheet / ledger), separated by hairline rules and spacing rhythm, not a stack of identical rounded rectangles.
 - **Exam status is a marker + label**, never a colored `border-left` rail. Passed = filled plum dot; up-next = magenta `--pop` dot (+ a single deliberate glow, the one neon moment); not-started = hollow muted ring. Figures use `Anton`/tabular; row metadata uses `Cutive Mono`.
 - **Links** are a listed set with real inline SVG brand marks, hairline-separated — not big pill buttons.
 - **Depth** = offset+blur shadows (e.g. `0 14px 34px rgba(0,0,0,.45)`), never a zero-offset colored halo.
 - **Motion — the record plays.** One motion metaphor, carried everywhere: cueing up and playing an LP.
-  - *Focal (cover, on load):* the vinyl is cued up onto the platter — slides out of the sleeve, spins up, tucks behind the portrait — while the name marquee wipes in.
-  - *Interactive:* on fine pointers the deck tilts in 3D toward the cursor, the aura drifting with it.
-  - *Scroll:* each section wipes in like a marquee light and its rows tick in staggered like a tracklist — role-specific reveals, not identical section fades.
-  - *Ambiance:* a slow plum/magenta aurora drifts behind everything (the stage light); vinyl spins, equalizer plays, aura breathes, the one magenta "up next" light pulses, orbs drift (desktop). The signature duotone→color photo reveal stays — photos also lift + bloom to color on hover, links spring their brand mark.
-  - *Rules:* all motion gated behind `prefers-reduced-motion: no-preference`; loops pause offscreen; scroll reveals are JS-gated so content is fully visible without JS.
+  - *Focal (cover, on load):* one orchestrated ~1.1s sequence — the record is cued up onto the platter and spins up while the name marquee wipes in line by line, then the status strip, nav and rail arrive.
+  - *Signature (interactive):* the record itself. Spin physics settle exponentially back to 33⅓; pause brakes noticeably faster than a throw settles, so stopping reads as deliberate.
+  - *Ambient canvas:* a groove field centred on the record — dust riding concentric grooves, brighter the faster it spins — plus motes drifting page-wide through the stage light. The cursor shoves particles off their track and they ease back.
+  - *Scroll:* each section reveals **in its own register**, never one shared fade. Liner note types a line at a time (line count measured at the current width); links tick in and lean magnetically toward the cursor; credits deal in like cards; menu items stamp down; contact-sheet frames develop; ledger rows stamp in with the count-up.
+  - *Cursor:* a plum ring trails the pointer and becomes a needle over the record. The real cursor is never hidden — it stays the thing you aim with.
+  - *Rules:* all motion gated behind `prefers-reduced-motion: no-preference`. **One** `requestAnimationFrame` drives physics, canvas and equalizer — never one loop per system. It halts when the tab is hidden. Under reduced motion there is no canvas, no load sequence and no idle spin, but a drag still works and brakes to a stop: the visitor asked for that motion themselves.
 - **Single-theme dark** by deliberate commitment (see Ground scene).
 
 ## Constraints
 
-Static `index.html` + `style.css` + `exams.js`; no framework/build. Exam ledger renders from `exams.js` data (tracker figures always derive from data). Mobile-first; must hold at 360px. Google Fonts via `<link>` (GitHub Pages, no Artifact CSP). Semantic HTML, AA contrast, keyboard focus, alt text.
+Static `index.html` + `style.css` + `exams.js` + `js/*.js` ES modules; no framework/build. Exam ledger renders from `exams.js` data (tracker figures always derive from data). Mobile-first; must hold at 360px. Google Fonts via `<link>` (GitHub Pages, no Artifact CSP). Semantic HTML, AA contrast, keyboard focus, alt text.
+
+Pure logic is unit-tested under `node --test`: `js/spin.js` (physics), `js/scroll.js` (rail progress, active section, stagger), `exams.js` (ledger). DOM wiring is verified in a real browser.
+
+**No-JS contract:** the head script adds `.js` pre-paint so reveals can hide content without a flash, and sets a 2.5s timer that removes it again unless `main.js` has claimed `.ready`. A broken or blocked module therefore shows the whole page rather than hiding it behind reveals that never fire.
