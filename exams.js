@@ -8,7 +8,7 @@ export const EXAMS = [
   { name: "Exam 1 · Probability",    status: "passed",     tier: "ACAS" },
   { name: "Exam 2 · Financial Math", status: "passed",     tier: "ACAS" },
   { name: "MAS-I",                   status: "passed",     tier: "ACAS" },
-  { name: "MAS-II",                  status: "scheduled",  tier: "ACAS", note: "Up next", date: "Jul 29" },
+  { name: "MAS-II",                  status: "waiting",    tier: "ACAS", date: "Taken Jul 29" },
   { name: "Exam 5",                  status: "notStarted", tier: "ACAS" },
   { name: "Exam 6",                  status: "notStarted", tier: "ACAS" },
   { name: "Exam 7",                  status: "notStarted", tier: "FCAS" },
@@ -16,12 +16,34 @@ export const EXAMS = [
   { name: "Exam 9",                  status: "notStarted", tier: "FCAS" },
 ];
 
+// The non-exam requirements. Deliberately a separate list rather than more
+// entries in EXAMS: the headline figure counts *exams* cleared, and the
+// credential maths walks the first N of the ordered exam list, so mixing these
+// in would silently corrupt both.
+// The three DISCs are listed individually rather than as one line: two are
+// done and one isn't, and a single "CAS DISCs" row could only be honest about
+// that by hiding the detail.
+export const REQUIREMENTS = [
+  { name: "CAS DISC · DA",             status: "passed",     tier: "ACAS" },
+  { name: "CAS DISC · RM",             status: "passed",     tier: "ACAS" },
+  { name: "CAS DISC · IA",             status: "notStarted", tier: "ACAS" },
+  { name: "PCPA Exam",                 status: "notStarted", tier: "ACAS" },
+  { name: "PCPA Project",              status: "notStarted", tier: "ACAS" },
+  { name: "Course on Professionalism", status: "notStarted", tier: "ACAS" },
+];
+
 const TIER_META = {
   ACAS: { label: "Associate", abbr: "ACAS", requires: 6 },
   FCAS: { label: "Fellow",    abbr: "FCAS", requires: 9 },
 };
 
-const LABEL = { passed: "Passed", scheduled: "Scheduled", notStarted: "Not started" };
+const STATUSES = ["passed", "waiting", "scheduled", "notStarted"];
+const LABEL = {
+  passed: "Passed",
+  waiting: "Waiting for results",
+  scheduled: "Scheduled",
+  notStarted: "Not started",
+};
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function escapeHTML(s) {
@@ -45,8 +67,8 @@ export function credentialProgress(exams, requires) {
 // nine exams read as nine tracks on one side. The accessible name spells the
 // action out, because the visible text alone doesn't say the row does anything.
 export function examRowHTML(exam) {
-  const status = ["passed", "scheduled", "notStarted"].includes(exam.status) ? exam.status : "notStarted";
-  const label = status === "scheduled" && exam.note ? escapeHTML(exam.note) : LABEL[status];
+  const status = STATUSES.includes(exam.status) ? exam.status : "notStarted";
+  const label = exam.note ? escapeHTML(exam.note) : LABEL[status];
   const date = exam.date ? `<span class="rec__date">${escapeHTML(exam.date)}</span>` : "";
   const name = escapeHTML(exam.name);
   return `<li class="rec rec--${status}">` +
@@ -59,7 +81,21 @@ export function examRowHTML(exam) {
     `</li>`;
 }
 
-export function renderExams(exams) {
+// The non-exam requirements for a credential, shown under that credential's
+// exams with their own count — they are not exams and must never be added to
+// the exam figures.
+function requirementsHTML(items) {
+  const done = items.filter((i) => i.status === "passed").length;
+  return `<div class="ledger__misc">` +
+      `<div class="ledger__subhead">` +
+        `<span class="ledger__misclabel">Misc requirements</span>` +
+        `<span class="ledger__prog">${pad2(done)} / ${pad2(items.length)}</span>` +
+      `</div>` +
+      `<ol class="ledger__list">${items.map(examRowHTML).join("")}</ol>` +
+    `</div>`;
+}
+
+export function renderExams(exams, requirements = []) {
   const { passed, total } = computeSummary(exams);
 
   // group by tier, preserving first-appearance order (untiered -> single group)
@@ -79,7 +115,10 @@ export function renderExams(exams) {
           `<span class="ledger__prog">${pad2(credentialProgress(exams, meta.requires).passed)} / ${pad2(meta.requires)}</span>` +
         `</div>`
       : "";
-    return `<div class="ledger__tier">${head}<ol class="ledger__list">${g.items.map(examRowHTML).join("")}</ol></div>`;
+    const misc = requirements.filter((r) => (r.tier ?? "") === g.key);
+    return `<div class="ledger__tier">${head}<ol class="ledger__list">${g.items.map(examRowHTML).join("")}</ol>` +
+      (misc.length ? requirementsHTML(misc) : "") +
+    `</div>`;
   }).join("");
 
   return `<div class="ledger">` +

@@ -1,7 +1,7 @@
 // Wiring. Every module below draws or reacts; none of them owns time — this
 // file runs the page's single animation frame and hands out the delta.
 
-import { EXAMS, renderExams } from "../exams.js";
+import { EXAMS, REQUIREMENTS, renderExams } from "../exams.js";
 import { scrollProgress, activeSection, waveHeights } from "./scroll.js";
 import { createDeck } from "./deck.js";
 import { createStage } from "./stage.js";
@@ -17,7 +17,7 @@ root.classList.add("ready");
 
 // ---------------------------------------------------------------- content
 
-document.getElementById("exam-tracker").innerHTML = renderExams(EXAMS);
+document.getElementById("exam-tracker").innerHTML = renderExams(EXAMS, REQUIREMENTS);
 document.getElementById("year").textContent = new Date().getFullYear();
 
 // ---------------------------------------------------------------- the deck

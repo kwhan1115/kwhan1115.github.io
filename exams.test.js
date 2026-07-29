@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EXAMS, computeSummary, credentialProgress, examRowHTML, renderExams } from "./exams.js";
+import { EXAMS, REQUIREMENTS, computeSummary, credentialProgress, examRowHTML, renderExams } from "./exams.js";
 
 test("computeSummary counts passed and total", () => {
   const s = computeSummary([
@@ -93,7 +93,79 @@ test("EXAMS default data is well-formed (9 exams, valid status + tier)", () => {
   assert.ok(Array.isArray(EXAMS) && EXAMS.length === 9);
   for (const e of EXAMS) {
     assert.ok(e.name, "exam has name");
-    assert.ok(["passed", "scheduled", "notStarted"].includes(e.status), "valid status");
+    assert.ok(["passed", "waiting", "scheduled", "notStarted"].includes(e.status), "valid status");
     assert.ok(["ACAS", "FCAS"].includes(e.tier), "valid tier");
   }
+});
+
+test("a sat-but-unmarked exam reads as waiting for results", () => {
+  const html = examRowHTML({ name: "MAS-II", status: "waiting", date: "Taken Jul 29" });
+  assert.match(html, /rec--waiting/);
+  assert.match(html, /Waiting for results/);
+  assert.match(html, /Taken Jul 29/);
+  assert.doesNotMatch(html, /Up next|Scheduled/);
+});
+
+test("a waiting exam is not counted as passed", () => {
+  const s = computeSummary([
+    { name: "A", status: "passed" },
+    { name: "B", status: "waiting" },
+  ]);
+  assert.deepEqual(s, { passed: 1, total: 2 });
+});
+
+test("REQUIREMENTS are well-formed and separate from the exams", () => {
+  assert.ok(Array.isArray(REQUIREMENTS) && REQUIREMENTS.length === 6);
+  for (const r of REQUIREMENTS) {
+    assert.ok(r.name, "requirement has name");
+    assert.ok(["passed", "waiting", "scheduled", "notStarted"].includes(r.status), "valid status");
+    assert.equal(r.tier, "ACAS", "these are ACAS requirements");
+    assert.ok(!EXAMS.some((e) => e.name === r.name), "a requirement must not also be an exam");
+  }
+});
+
+test("a completed requirement counts toward the misc tally only", () => {
+  const done = REQUIREMENTS.filter((r) => r.status === "passed").length;
+  assert.equal(done, 2, "DA and RM are done");
+  // ...and none of that leaks into the exam summary
+  assert.deepEqual(computeSummary(EXAMS), { passed: 3, total: 9 });
+});
+
+test("requirements never touch the exam figures", () => {
+  const withReqs = renderExams(EXAMS, REQUIREMENTS);
+  const without = renderExams(EXAMS);
+  for (const figure of [/exams cleared/, /03 \/ 06/, /03 \/ 09/]) {
+    assert.match(withReqs, figure);
+    assert.match(without, figure);
+  }
+  // the headline count still says 9 exams, not 13
+  assert.match(withReqs, /data-to="9"/);
+  assert.deepEqual(computeSummary(EXAMS), { passed: 3, total: 9 });
+  assert.deepEqual(credentialProgress(EXAMS, 6), { passed: 3, requires: 6 });
+});
+
+test("requirements render under their credential with their own count", () => {
+  const html = renderExams(EXAMS, REQUIREMENTS);
+  assert.match(html, /ledger__misc/);
+  assert.match(html, /Misc requirements/);
+  assert.match(html, /02 \/ 06/); // DA and RM done, IA still open
+  for (const name of ["CAS DISC · DA", "CAS DISC · RM", "CAS DISC · IA",
+                      "PCPA Exam", "PCPA Project", "Course on Professionalism"]) {
+    assert.ok(html.includes(name), `${name} is listed`);
+  }
+  // and they sit inside the ACAS tier, ahead of the FCAS block
+  assert.ok(html.indexOf("Misc requirements") < html.indexOf("Fellow"), "misc block belongs to ACAS");
+});
+
+test("renderExams without requirements renders no misc block at all", () => {
+  const html = renderExams(EXAMS);
+  assert.doesNotMatch(html, /ledger__misc/);
+  assert.doesNotMatch(html, /Misc requirements/);
+});
+
+test("a credential with no requirements gets no misc block", () => {
+  const html = renderExams(EXAMS, REQUIREMENTS);
+  // FCAS has none defined, so only one misc block exists on the page.
+  // Match the exact class so `ledger__misclabel` doesn't count as a block.
+  assert.equal((html.match(/class="ledger__misc"/g) || []).length, 1);
 });
