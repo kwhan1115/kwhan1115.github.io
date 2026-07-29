@@ -35,7 +35,7 @@ body {
   background-attachment: fixed;
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 17px;
+  font-size: 1.0625rem; /* 17px at the default root, and it scales with it */
   line-height: 1.6;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
@@ -78,6 +78,16 @@ a { color: inherit; }
   counter-reset: track;
 }
 @media (min-width: 1100px) { .sleeve { max-width: 840px; } }
+
+/* Big monitors. The reading measure can't just keep widening — 75ch is already
+   the ceiling — so the page scales instead: the ROOT size steps up (rem reads
+   from html, not body) and every rem-based thing — type, the record, spacing —
+   grows with it, while the column widens only enough to keep its proportion.
+   Below 1600px nothing changes: the root stays at the browser default and the
+   layout renders exactly as it did. */
+@media (min-width: 1600px) { html { font-size: 17.5px; } .sleeve { max-width: 950px; } }
+@media (min-width: 2000px) { html { font-size: 19px; }   .sleeve { max-width: 1070px; } }
+@media (min-width: 2400px) { html { font-size: 20.5px; } .sleeve { max-width: 1180px; } }
 
 /* ================================================================
    Ambient layers — canvas groove field, aurora, spine
@@ -210,14 +220,16 @@ html:not(.ready) .wave { display: none; }
 
 .wave__bars {
   position: absolute; inset: 0;
-  display: flex; align-items: center; gap: 2px;
+  display: flex; align-items: center; justify-content: space-between;
   padding: 0 2px; pointer-events: none;
 }
 /* Bars want to be narrower than they are tall at every amplitude — a bar wider
-   than its own height reads as a block, not as audio. ~3px wide against a
-   28–42px strip keeps even the quietest bar upright. */
+   than its own height reads as a block, not as audio. So the width is FIXED and
+   the spacing absorbs whatever is left over: if the bar count ever falls short
+   of the screen the gaps open up, which still reads as a waveform. Letting the
+   bars stretch instead is what made it blocky. */
 .wave__bars i {
-  flex: 1 1 0; min-width: 2px;
+  flex: 0 0 3px;
   height: calc(var(--h, .3) * 100%);
   border-radius: 1.5px;
 }
@@ -274,7 +286,10 @@ html:not(.ready) .wave { display: none; }
    On a phone the same rule just opens holes between the name and the record. */
 @media (min-height: 620px) and (min-width: 560px) {
   .cover {
-    min-height: calc(100svh - var(--chrome-h) - clamp(3rem, 9vw, 6rem));
+    /* Capped: a name and a record spread across 1400px of monitor is a canyon,
+       not a sleeve. Past ~860px the cover stops growing and the page below
+       simply starts sooner. */
+    min-height: min(calc(100svh - var(--chrome-h) - clamp(3rem, 9vw, 6rem)), 860px);
     align-content: space-between;
   }
 }
@@ -386,7 +401,9 @@ html:not(.ready) .wave { display: none; }
   .cover__head { grid-row: 2; }
   .deck { grid-row: 2; width: 210px; align-self: center; }
 }
-@media (min-width: 1100px) { .deck { width: 250px; } }
+/* In rem, so the record grows with the root size on big monitors instead of
+   sitting there as a fixed 250px coin. */
+@media (min-width: 1100px) { .deck { width: 15.6rem; } }
 
 /* ================================================================
    Blocks + marquee headers
