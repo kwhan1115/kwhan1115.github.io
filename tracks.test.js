@@ -2,6 +2,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TRACKS, trackPickerHTML } from "./tracks.js";
 
+// Mirrors tracks.js's private escapeHTML. The renderer never emits a raw
+// title — comparing against unescaped text was the original bug in this
+// file: it made a correct escape look like a broken manifest. Tests below
+// that check rendered text compare against this, not against the raw field.
+function escapeHTML(s) {
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 test("TRACKS is well-formed", () => {
   assert.ok(Array.isArray(TRACKS) && TRACKS.length > 0);
   for (const t of TRACKS) {
@@ -23,12 +33,21 @@ test("every track carries a real artist name, not a filename", () => {
 });
 
 test("trackPickerHTML renders one button per track, keyed by id", () => {
-  const html = trackPickerHTML(TRACKS);
-  for (const t of TRACKS) {
-    assert.ok(html.includes(`data-track="${t.id}"`), `${t.id} has a button`);
-    assert.ok(html.includes(t.title), `${t.title} is named`);
+  // A local fixture, not TRACKS: appends a track whose title carries an
+  // apostrophe, an ampersand, and angle brackets — the characters escapeHTML
+  // transforms. That way this test, not just the dedicated escaping test,
+  // fails the right way when a future track's real punctuation collides with
+  // an assertion that forgot the renderer escapes its output.
+  const fixture = [
+    ...TRACKS,
+    { id: "awkward", artist: "The Awkward Band", title: "Rock & Roll <Encore> (Fans' Cut)", src: "./assets/audio/awkward.m4a" },
+  ];
+  const html = trackPickerHTML(fixture);
+  for (const t of fixture) {
+    assert.ok(html.includes(`data-track="${escapeHTML(t.id)}"`), `${t.id} has a button`);
+    assert.ok(html.includes(escapeHTML(t.title)), `${t.title} is named`);
   }
-  assert.equal((html.match(/<button/g) || []).length, TRACKS.length);
+  assert.equal((html.match(/<button/g) || []).length, fixture.length);
 });
 
 test("every picker button starts unpressed", () => {
