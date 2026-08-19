@@ -30,7 +30,10 @@ export function toInt16(f32) {
 export function createDeckAudio({ onState } = {}) {
   let ctx = null;
   let node = null;
-  let moduleReady = null;
+  // Memoised setup: every load() awaits the SAME promise, so two overlapping
+  // loads can't each build their own AudioContext and leave the loser's node
+  // silently disconnected from a worklet module that never loaded for it.
+  let graphReady = null;
   let current = null;      // the track id that is loaded or loading
   let origin = null;       // turns at the moment the needle went down
   let lastTurns = 0;
@@ -44,31 +47,45 @@ export function createDeckAudio({ onState } = {}) {
   const isSupported = () =>
     typeof AudioContext !== "undefined" && typeof AudioWorkletNode !== "undefined";
 
-  async function ensureGraph() {
-    if (node) return;
-    ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
-    if (!moduleReady) {
-      const url = URL.createObjectURL(new Blob([WORKLET_SOURCE], { type: "application/javascript" }));
-      moduleReady = ctx.audioWorklet.addModule(url).finally(() => URL.revokeObjectURL(url));
+  // Idempotent under concurrency: the check-and-set on graphReady happens
+  // synchronously (JS runs an async function's body up to its first await
+  // without interleaving), so the second of two overlapping load() calls sees
+  // graphReady already set and awaits the first one's setup instead of
+  // starting a second AudioContext of its own.
+  function ensureGraph() {
+    if (!graphReady) {
+      graphReady = (async () => {
+        ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+        const url = URL.createObjectURL(new Blob([WORKLET_SOURCE], { type: "application/javascript" }));
+        await ctx.audioWorklet.addModule(url).finally(() => URL.revokeObjectURL(url));
+        node = new AudioWorkletNode(ctx, PROCESSOR_NAME, { outputChannelCount: [2] });
+        // The worklet posts {type:"pos"} roughly every 2400 samples. Nobody can
+        // hear this feature from a terminal, so this stream is the only evidence
+        // that the rate is steady, that a backward drag drives the head negative,
+        // or that a held record goes silent — keep the latest one for whoever
+        // asks via getTelemetry().
+        node.port.onmessage = (e) => {
+          const m = e.data;
+          if (m.type === "pos") telemetry = { cur: m.cur, rate: m.rate, rms: m.rms };
+        };
+        node.connect(ctx.destination);
+      })();
     }
-    await moduleReady;
-    node = new AudioWorkletNode(ctx, PROCESSOR_NAME, { outputChannelCount: [2] });
-    // The worklet posts {type:"pos"} roughly every 2400 samples. Nobody can
-    // hear this feature from a terminal, so this stream is the only evidence
-    // that the rate is steady, that a backward drag drives the head negative,
-    // or that a held record goes silent — keep the latest one for whoever
-    // asks via getTelemetry().
-    node.port.onmessage = (e) => {
-      const m = e.data;
-      if (m.type === "pos") telemetry = { cur: m.cur, rate: m.rate, rms: m.rms };
-    };
-    node.connect(ctx.destination);
+    return graphReady;
   }
 
   async function load(track) {
     const mine = ++token;
     abort?.abort();
-    abort = new AbortController();
+    // Captured locally: `abort` (the shared closure variable) gets
+    // reassigned the instant a later load() starts, which can happen while
+    // this invocation is still awaiting ensureGraph()/ctx.resume() — before
+    // it ever reaches the fetch below. Reading `abort.signal` at that point
+    // would bind this fetch to the NEXT invocation's controller, so a stop()
+    // or a third load() would abort the wrong request and this one's
+    // multi-megabyte download/decode would run to completion for nothing.
+    const myAbort = new AbortController();
+    abort = myAbort;
     current = track.id;
     origin = null;
     // A stale reading from whatever track was playing before this one must
@@ -83,7 +100,7 @@ export function createDeckAudio({ onState } = {}) {
       // click that picked the track, so it is allowed to resume here.
       if (ctx.state === "suspended") await ctx.resume();
 
-      const res = await fetch(track.src, { signal: abort.signal });
+      const res = await fetch(track.src, { signal: myAbort.signal });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const decoded = await ctx.decodeAudioData(await res.arrayBuffer());
       if (mine !== token) return;                       // a newer pick won
