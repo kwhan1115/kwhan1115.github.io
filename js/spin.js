@@ -69,6 +69,21 @@ export function rpmLabel(vel) {
 }
 
 /**
+ * What the status strip should call the current state. `paused` is the same
+ * flag that already drives aria-pressed and the is-stopped class, so it wins
+ * outright rather than waiting for `vel` to actually ease to zero — during
+ * the brake, vel is still passing through real RPM values, and reporting one
+ * of those while the transport has already declared the record stopped would
+ * just move the lie from "stopped and still says playing" to "stopped and
+ * still says a speed". A record that is merely grabbed (vel pinned to 0 by
+ * the pointer, not by pause) must still read as playing, which is exactly
+ * why this checks `paused` and not `vel === 0`.
+ */
+export function speedLabel(vel, paused) {
+  return paused ? "Stopped" : rpmLabel(vel);
+}
+
+/**
  * Advance the deck one frame, in place.
  * `state` is { angle, vel, grabbed, turns }. `dt` is seconds.
  * While grabbed the pointer owns the angle, so physics stays out of it.

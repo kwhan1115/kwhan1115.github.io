@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   IDLE_RPM, IDLE_VEL, rpmToDeg, degToRpm,
-  wrapAngle, shortestDelta, velocityFromSamples, rpmLabel, stepSpin,
+  wrapAngle, shortestDelta, velocityFromSamples, rpmLabel, speedLabel, stepSpin,
 } from "./spin.js";
 
 test("rpm and degrees-per-second convert both ways", () => {
@@ -88,6 +88,38 @@ test("rpmLabel reports scratching only for meaningful reverse spin", () => {
 
 test("rpmLabel tops out rather than inventing a speed", () => {
   assert.equal(rpmLabel(rpmToDeg(400)), "OVERSPUN");
+});
+
+test("speedLabel reports Stopped when paused, regardless of vel", () => {
+  // Mid-brake the record is still passing through a real RPM on its way to
+  // zero; paused wins anyway, because it is the same flag the transport
+  // already used to flip aria-pressed and the is-stopped class the instant
+  // the press happened, and the strip has to agree with them, not wait for
+  // the physics to catch up.
+  assert.equal(speedLabel(0, true), "Stopped");
+  assert.equal(speedLabel(rpmToDeg(33.33), true), "Stopped");
+  assert.equal(speedLabel(rpmToDeg(-30), true), "Stopped");
+});
+
+test("speedLabel defers to rpmLabel when not paused", () => {
+  assert.equal(speedLabel(IDLE_VEL, false), "33⅓ RPM");
+  assert.equal(speedLabel(rpmToDeg(78), false), "78 RPM");
+  assert.equal(speedLabel(rpmToDeg(-30), false), "— scratching —");
+});
+
+test("speedLabel at vel 0 while not paused still reads as playing", () => {
+  // A grabbed record is pinned to vel 0 by the pointer, not by pause -- it
+  // must not read as stopped just because the two states share a velocity.
+  assert.equal(speedLabel(0, false), "33⅓ RPM");
+});
+
+test("speedLabel never produces a string rpmLabel could also produce", () => {
+  // This is what lets report()'s plain string-equality dedup catch every
+  // transition into or out of pause: "Stopped" has to be a value rpmLabel
+  // can never independently land on, or a coincidental match would suppress
+  // a real change.
+  const rpmOutputs = ["— scratching —", "33⅓ RPM", "45 RPM", "78 RPM", "OVERSPUN"];
+  assert.equal(rpmOutputs.includes("Stopped"), false);
 });
 
 test("stepSpin advances the angle by velocity and wraps", () => {

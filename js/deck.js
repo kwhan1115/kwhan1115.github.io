@@ -4,7 +4,7 @@
 // Physics lives in spin.js (pure, tested). This module owns the state and the
 // DOM, and reports back whenever the visible label or speed changes.
 
-import { IDLE_VEL, wrapAngle, shortestDelta, velocityFromSamples, rpmLabel, stepSpin } from "./spin.js";
+import { IDLE_VEL, wrapAngle, shortestDelta, velocityFromSamples, speedLabel, stepSpin } from "./spin.js";
 
 // A throw faster than this is almost certainly a flick of the wrist against a
 // trackpad rather than an intention, and it makes the label unreadable.
@@ -46,6 +46,9 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
   let velBeforeGrab = 0;
   let didDrag = false;
   let lastLabel = "";
+  // Set at pointerdown, where e.target is still trustworthy — see the click
+  // listener below for why it cannot be re-derived there.
+  let pressedOnLabel = false;
 
   const centre = () => {
     const r = root.getBoundingClientRect();
@@ -57,12 +60,20 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
   };
 
   function report() {
-    const label = rpmLabel(state.vel);
+    // speedLabel folds `paused` in, not just `vel`: rpmLabel alone can't tell
+    // a genuinely stopped record from one mid-brake at the same nominal RPM,
+    // which is exactly how a permanent "Now playing" survived a record that
+    // had actually gone silent — "Stopped" is a string no rpmLabel bucket
+    // ever produces, so a transition into or out of pause always differs
+    // from lastLabel and always reaches onChange, even when vel itself
+    // hasn't moved yet (e.g. the instant setPaused(false) runs, before the
+    // next frame's physics nudges vel away from 0).
+    const label = speedLabel(state.vel, paused);
     if (label === lastLabel) return;
     lastLabel = label;
     const speed = label === "— scratching —" ? "reverse" : label.replace(" RPM", "");
     sideEl.textContent = cued ? cued.sub : `${speed} · stereo`;
-    onChange?.({ speed: label, title: cued ? cued.title : "Side A", vel: state.vel });
+    onChange?.({ speed: label, title: cued ? cued.title : "Side A", vel: state.vel, paused });
   }
 
   function paint() {
@@ -79,6 +90,12 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
     // throws for a pointer the browser isn't tracking — never let that abort
     // the grab.
     try { root.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    // setPointerCapture above also retargets the click event that follows a
+    // real pointer press to the capturing element (root), so by the time
+    // click fires, e.target is always the record and never the label --
+    // pointerdown is the only moment in the gesture where the true target
+    // is still visible, so it has to be captured here.
+    pressedOnLabel = !!(e.target instanceof Element && e.target.closest(".record__label"));
     state.grabbed = true;
     root.classList.add("is-grabbed");
     markUsed();
@@ -127,10 +144,12 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
   root.addEventListener("pointercancel", release);
 
   // A mouse drag ends in a click event too, and only the centre label is the
-  // transport. `e.detail === 0` means the press came from the keyboard.
+  // transport. `e.detail === 0` means the press came from the keyboard, which
+  // reports no coordinates and so pressIntent ignores onLabel for it entirely
+  // — pressedOnLabel only has to be fresh for a real pointer click, and it
+  // is, because pointerdown above overwrites it on every single press.
   root.addEventListener("click", (e) => {
-    const onLabel = !!(e.target instanceof Element && e.target.closest(".record__label"));
-    const intent = pressIntent({ onLabel, didDrag, keyboard: e.detail === 0 });
+    const intent = pressIntent({ onLabel: pressedOnLabel, didDrag, keyboard: e.detail === 0 });
     didDrag = false;
     if (intent === "toggle") togglePaused();
   });
@@ -174,7 +193,10 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
     root.classList.remove("is-cued");
     void root.offsetWidth; // restart the flash
     root.classList.add("is-cued");
-    onChange?.({ speed: rpmLabel(state.vel), title: cued ? cued.title : "Side A", vel: state.vel });
+    // Same reasoning as report(): use speedLabel, not rpmLabel, so cueing a
+    // track while the record is still paused (the moment before main.js
+    // unpauses it) doesn't announce a speed the record isn't actually at.
+    onChange?.({ speed: speedLabel(state.vel, paused), title: cued ? cued.title : "Side A", vel: state.vel, paused });
   }
 
   // ---- frame ------------------------------------------------------------

@@ -31,8 +31,12 @@ const topNowText = document.querySelector(".topbar__now-text");
 
 const deck = createDeck(document.querySelector(".record"), {
   reduced,
-  onChange({ speed, title, vel }) {
-    nowText.textContent = `Now playing — ${title} · ${speed}`;
+  onChange({ speed, title, vel, paused }) {
+    // A stopped record is genuinely silent (playback position is a function
+    // of rotation, and a paused record isn't rotating), so "Now playing"
+    // plus a speed reading would be stating something false. The track is
+    // still cued, so it's still worth naming — just not as playing.
+    nowText.textContent = paused ? `Stopped — ${title}` : `Now playing — ${title} · ${speed}`;
     // Reserve the magenta for the one thing that's live: a record being run
     // past its own speed.
     nowLine.classList.toggle("cover__now--fast", Math.abs(vel) > 372 || vel < -12);
