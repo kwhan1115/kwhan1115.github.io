@@ -329,10 +329,12 @@ html:not(.ready) .wave { display: none; }
 
 /* ---- The deck ---- */
 .deck { position: relative; width: min(240px, 66%); justify-self: start; }
-/* Symmetric on purpose: -25%/150% puts the box's centre exactly on the record's.
-   The old -18%/-20% offsets were sized for a deck that also held the portrait,
-   and left the glow sitting ~17px to the right of the vinyl. */
-.deck::before {
+/* The platter is a square box around the vinyl and nothing else. The glow is
+   sized as a percentage of its parent, so it has to hang off a box that is
+   exactly the record — hanging it off .deck put it 17px off-centre once
+   already, and .deck is now taller than the record because the picker is in it. */
+.deck__platter { position: relative; aspect-ratio: 1; }
+.deck__platter::before {
   content: ""; position: absolute; z-index: 0;
   top: -25%; left: -25%; width: 150%; height: 150%;
   background: radial-gradient(circle at 50% 50%, rgba(199, 125, 255, 0.30), rgba(199, 125, 255, 0) 60%);
@@ -391,6 +393,48 @@ html:not(.ready) .wave { display: none; }
 .record__side { font-family: var(--mono); font-size: clamp(.36rem, .82vw, .52rem); opacity: .82; }
 .record.is-cued .record__label { animation: cueFlash .5s ease; }
 
+/* The transport. The centre has always toggled pause; nothing ever said so.
+   At rest the label is the track name; approach it and the name dims under a
+   pause bar, so the control announces itself exactly when it might be wanted. */
+.record__glyph {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  opacity: 0; transition: opacity .18s ease;
+  pointer-events: none;
+}
+/* Left and right borders draw the two pause bars; the content box between
+   them is the transparent gap. Content-box, not the page's border-box
+   default, or the borders would eat into the width instead of adding to it. */
+.record__glyph::before {
+  content: ""; display: block;
+  width: 0.34em; height: 1.1em; font-size: clamp(.7rem, 1.7vw, 1rem);
+  box-sizing: content-box;
+  border-left: 0.34em solid var(--ground);
+  border-right: 0.34em solid var(--ground);
+}
+/* Stopped: a play triangle, because the action on offer has changed. */
+.record.is-stopped .record__glyph::before {
+  width: 0; height: 0; border: 0;
+  border-left: 0.9em solid var(--ground);
+  border-top: 0.55em solid transparent;
+  border-bottom: 0.55em solid transparent;
+  margin-left: 0.2em;   /* a triangle looks off-centre when it is centred */
+}
+.record__label { transition: opacity .18s ease; }
+.record:hover .record__title,
+.record:hover .record__side,
+.record:focus-visible .record__title,
+.record:focus-visible .record__side { opacity: .18; }
+.record:hover .record__glyph,
+.record:focus-visible .record__glyph { opacity: 1; }
+
+/* Touch has no hover, so a hover-only affordance is invisible on every phone.
+   There the glyph simply lives in the label. */
+@media (hover: none) {
+  .record__glyph { opacity: .55; }
+  .record:hover .record__title, .record:hover .record__side { opacity: 1; }
+  .record__title { opacity: .9; }
+}
+
 .deck__hint {
   margin: 0;
   font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; color: var(--muted);
@@ -398,6 +442,60 @@ html:not(.ready) .wave { display: none; }
 }
 .deck__hint::after { content: " \2197"; color: var(--plum); }
 .cover.is-used .deck__hint { opacity: 0; }
+
+/* ---- The picker ---- */
+.picker { list-style: none; margin: .95rem 0 0; padding: 0; }
+.picker__item + .picker__item { border-top: 1px solid var(--line); }
+.picker__btn {
+  display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .55rem;
+  width: 100%; padding: .42rem .2rem; margin: 0;
+  border: 0; background: none; font: inherit; text-align: left; color: inherit;
+  cursor: pointer; transition: background-color .18s ease, padding-left .25s var(--ease);
+}
+.picker__btn:hover { background: rgba(199, 125, 255, .07); padding-left: .5rem; }
+.picker__text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.picker__title {
+  font-size: .78rem; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.picker__artist {
+  font-family: var(--mono); font-size: .64rem; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The mark is the needle: an outline when idle, filled while playing. Plum,
+   not pop — the magenta on this page means "past its own speed" and nothing
+   else. */
+.picker__mark {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid var(--muted); background: transparent;
+  transition: background-color .18s ease, border-color .18s ease;
+}
+.picker__btn[aria-pressed="true"] .picker__mark { background: var(--plum); border-color: var(--plum); }
+.picker__btn[aria-pressed="true"] .picker__title { color: var(--plum); }
+/* Loading says so in words rather than animating. The only `pulse` keyframe in
+   this file glows `--pop`, which is reserved for "past its own speed", and it
+   is declared inside a prefers-reduced-motion block so it would do nothing for
+   the visitors most likely to need the feedback. */
+.picker__btn[data-state="loading"] .picker__mark { border-color: var(--plum); }
+.picker__btn[data-state="loading"] .picker__artist::after { content: "  · loading"; }
+.picker__btn[data-state="failed"] { cursor: not-allowed; }
+.picker__btn[data-state="failed"] .picker__title { color: var(--muted); text-decoration: line-through; }
+.picker__btn[data-state="failed"] .picker__artist::after { content: "  · unavailable"; }
+
+/* Mute. Quiet by default — it is a safety rail, not a feature to advertise. */
+.mute {
+  display: flex; align-items: center; gap: .45rem;
+  margin-top: .55rem; padding: .3rem .2rem;
+  border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: .64rem; letter-spacing: .06em;
+  color: var(--muted); transition: color .18s ease;
+}
+.mute:hover { color: var(--ink); }
+.mute__mark {
+  width: 9px; height: 9px; border-radius: 1px;
+  background: var(--plum); transition: background-color .18s ease;
+}
+.mute[aria-pressed="true"] .mute__mark { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
 
 @media (min-width: 560px) {
   .cover { grid-template-columns: 1fr auto; column-gap: 1.5rem; }
@@ -503,14 +601,7 @@ html:not(.ready) .wave { display: none; }
   content: "◇";
   margin: 0 0.6rem; color: var(--plum); font-size: 0.7em; vertical-align: 0.15em;
 }
-.credit {
-  padding: 0; border: 0; background: none;
-  font: inherit; color: var(--ink); cursor: pointer;
-  border-bottom: 1px solid transparent;
-  transition: color .18s ease, border-color .18s ease;
-}
-.credit:hover { color: var(--plum); border-bottom-color: var(--plum); }
-.credit[aria-pressed="true"] { color: var(--plum); border-bottom-color: var(--plum); }
+.credit { color: inherit; }
 
 /* ================================================================
    Food menu
@@ -634,15 +725,11 @@ html:not(.ready) .wave { display: none; }
 }
 
 .ledger__list { list-style: none; margin: 0; padding: 0; }
-.rec { border-top: 1px solid var(--line); }
-.rec__cue {
+.rec {
+  border-top: 1px solid var(--line);
   display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.85rem;
-  width: 100%; padding: 0.78rem 0.25rem; margin: 0;
-  border: 0; background: none; font: inherit; text-align: left; color: inherit; cursor: pointer;
-  transition: background-color .18s ease, padding-left .25s var(--ease);
+  padding: 0.78rem 0.25rem;
 }
-.rec__cue:hover { background: rgba(199, 125, 255, .07); padding-left: .7rem; }
-.rec__cue[aria-pressed="true"] { background: rgba(199, 125, 255, .11); padding-left: .7rem; }
 .rec__mark {
   width: 11px; height: 11px; border-radius: 50%;
   background: transparent; border: 1.5px solid var(--muted);
@@ -724,6 +811,7 @@ html:not(.ready) .wave { display: none; }
   .needle.is-on { opacity: 1; }
   .needle.is-over { --ns: 1.7; background: rgba(199, 125, 255, .1); border-color: var(--plum); }
   .needle.is-record { --ns: .55; background: var(--plum); border-color: var(--plum); }
+  .needle.is-label  { --ns: .3;  background: var(--ink); border-color: var(--ink); }
 }
 
 /* ================================================================
@@ -746,7 +834,7 @@ html:not(.ready) .wave { display: none; }
   .aurora span:nth-child(1) { animation: aur1 38s ease-in-out infinite; }
   .aurora span:nth-child(2) { animation: aur2 48s ease-in-out infinite; }
   .aurora span:nth-child(3) { animation: aur3 42s ease-in-out infinite; }
-  .deck::before { animation: breathe 6.5s ease-in-out infinite; }
+  .deck__platter::before { animation: breathe 6.5s ease-in-out infinite; }
   .cover__now-dot { animation: nowdot 2s ease-in-out infinite; }
   .rec--scheduled .rec__mark, .rec--waiting .rec__mark { animation: pulse 2.4s ease-in-out infinite; }
 

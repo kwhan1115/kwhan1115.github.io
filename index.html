@@ -89,14 +89,22 @@
       </div>
 
       <div class="deck">
-        <button class="record" type="button" aria-pressed="true"
-                aria-label="Record. Drag to spin it, arrow keys to nudge, space to stop.">
-          <span class="record__disc" aria-hidden="true">
-            <span class="record__label">
-              <span class="record__title">Kyuwon<br>Han</span>
-              <span class="record__side">33⅓ · stereo</span>
+        <div class="deck__platter">
+          <button class="record" type="button" aria-pressed="true"
+                  aria-label="Record. Drag it to spin, arrow keys to nudge; press the centre label, space, or enter to stop it.">
+            <span class="record__disc" aria-hidden="true">
+              <span class="record__label">
+                <span class="record__title">Kyuwon<br>Han</span>
+                <span class="record__side">33⅓ · stereo</span>
+                <span class="record__glyph" aria-hidden="true"></span>
+              </span>
             </span>
-          </span>
+          </button>
+        </div>
+        <div id="track-picker"></div>
+        <button class="mute" type="button" id="mute" aria-pressed="false" hidden>
+          <span class="mute__mark" aria-hidden="true"></span>
+          <span class="mute__label">Sound on</span>
         </button>
       </div>
 
@@ -136,13 +144,13 @@
     <section class="block" id="music" aria-labelledby="music-h">
       <h2 id="music-h" class="marquee">Music <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></h2>
       <p class="lead">I play piano, percussion, a bit of drums, guitar, and bass.</p>
-      <p class="credit-label">On heavy rotation — pick one to put it on the record</p>
+      <p class="credit-label">On heavy rotation</p>
       <ul class="credits">
-        <li><button class="credit" type="button" data-cue="Hiromi Uehara"    data-sub="On heavy rotation">Hiromi Uehara</button></li>
-        <li><button class="credit" type="button" data-cue="Erroll Garner"    data-sub="On heavy rotation">Erroll Garner</button></li>
-        <li><button class="credit" type="button" data-cue="Bill Evans"       data-sub="On heavy rotation">Bill Evans</button></li>
-        <li><button class="credit" type="button" data-cue="Anomalie"         data-sub="On heavy rotation">Anomalie</button></li>
-        <li><button class="credit" type="button" data-cue="insaneintherain"  data-sub="On heavy rotation">insaneintherain</button></li>
+        <li><span class="credit">Hiromi Uehara</span></li>
+        <li><span class="credit">Erroll Garner</span></li>
+        <li><span class="credit">Bill Evans</span></li>
+        <li><span class="credit">Anomalie</span></li>
+        <li><span class="credit">insaneintherain</span></li>
       </ul>
       <figure class="met">
         <a class="shot met__frame" href="./assets/music-hiromi.jpg">
