@@ -6,6 +6,10 @@ import { TRACKS, trackPickerHTML } from "./tracks.js";
 // title — comparing against unescaped text was the original bug in this
 // file: it made a correct escape look like a broken manifest. Tests below
 // that check rendered text compare against this, not against the raw field.
+// The mirror alone isn't sufficient proof, though: if this copy and the real
+// one were ever wrong in the same way, every assertion built on it would
+// still pass. The hardcoded-literal assertion further down is what catches
+// that case — same convention exams.test.js uses (&quot;&gt;, &lt;b&gt;).
 function escapeHTML(s) {
   return String(s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -48,6 +52,13 @@ test("trackPickerHTML renders one button per track, keyed by id", () => {
     assert.ok(html.includes(escapeHTML(t.title)), `${t.title} is named`);
   }
   assert.equal((html.match(/<button/g) || []).length, fixture.length);
+
+  // Hardcoded literal, not derived through the mirror above — states the
+  // expected escaped bytes directly, so a matching mistake in both this
+  // file's escapeHTML and tracks.js's still fails here. The apostrophe is
+  // the character that caused the original false failure (and the wrong
+  // fix, a track rename), so it is the one this assertion pins down.
+  assert.ok(html.includes("Rock &amp; Roll &lt;Encore&gt; (Fans&#39; Cut)"));
 });
 
 test("every picker button starts unpressed", () => {
