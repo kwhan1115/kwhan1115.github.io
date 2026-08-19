@@ -35,18 +35,22 @@ class ScratchProcessor extends AudioWorkletProcessor {
     this.lastFrame = 0;  // this worklet's own clock at the last target message
     this.frames = 0;
 
-    this.chase = 25000;  // gentle: the chase only trims residual error. Raised
-                          // from 6000 (task-10 fix report, one-clock addendum):
-                          // once the feedforward rate stopped being computed
-                          // from two disagreeing clocks, the remaining idle-rate
-                          // ripple was exactly the chase term's own sawtooth
-                          // (measured ~0.06 at 6000, matching the frame_samples
-                          // /chase relation). Slowing the chase further trims
-                          // that sawtooth; the feedforward nominal still carries
-                          // the pitch and still responds within one animation
-                          // frame, so this costs scratch responsiveness nothing
-                          // measurable (round trip and reversal tests both still
-                          // pass with wide margin at this value).
+    this.chase = 50000;  // gentle: the chase only trims residual error. Raised
+                          // from 25000 (task-10 fix report, 60Hz addendum): the
+                          // sawtooth ripple this term leaves behind scales with
+                          // animation-frame period, and this machine's fast
+                          // (~7.7ms) rAF cadence was hiding a worse case at an
+                          // ordinary 60Hz (16.7ms) frame. Calibrated against a
+                          // real measurement (~8% off theory), 50000 predicts
+                          // ~0.016 spread at 60Hz -- under the 0.02 bar with
+                          // margin, not landing on the line. The feedforward
+                          // nominal still carries the pitch and still responds
+                          // within one animation frame regardless of chase, so
+                          // this costs scratch responsiveness nothing measurable
+                          // (direction reversal and round-trip position both
+                          // still pass with margin; post-scratch pitch settles
+                          // back under the 0.02 bar in ~32ms, well below any
+                          // audible threshold).
     this.maxRate = 8;
 
     this.acc = 0;
