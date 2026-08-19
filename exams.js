@@ -63,22 +63,18 @@ export function credentialProgress(exams, requires) {
   return { passed, requires };
 }
 
-// Each row is a button: pressing it cues that exam onto the hero record, so the
-// nine exams read as nine tracks on one side. The accessible name spells the
-// action out, because the visible text alone doesn't say the row does anything.
+// A row in the ledger. Not a control: the record's label names whatever is
+// playing, and a row that could overwrite it would be making the label lie.
 export function examRowHTML(exam) {
   const status = STATUSES.includes(exam.status) ? exam.status : "notStarted";
   const label = exam.note ? escapeHTML(exam.note) : LABEL[status];
   const date = exam.date ? `<span class="rec__date">${escapeHTML(exam.date)}</span>` : "";
   const name = escapeHTML(exam.name);
   return `<li class="rec rec--${status}">` +
-    `<button class="rec__cue" type="button" data-cue="${name}" data-sub="${label}"` +
-      ` aria-label="${name} — ${label}. Put on the record.">` +
-      `<span class="rec__mark" aria-hidden="true"></span>` +
-      `<span class="rec__name">${name}</span>` +
-      `<span class="rec__stat"><span class="rec__label">${label}</span>${date}</span>` +
-    `</button>` +
-    `</li>`;
+    `<span class="rec__mark" aria-hidden="true"></span>` +
+    `<span class="rec__name">${name}</span>` +
+    `<span class="rec__stat"><span class="rec__label">${label}</span>${date}</span>` +
+  `</li>`;
 }
 
 // The non-exam requirements for a credential, shown under that credential's

@@ -33,31 +33,32 @@ test("examRowHTML includes name, status class, and scheduled note", () => {
   assert.match(html, /Up next/);
 });
 
-test("examRowHTML renders exam date when present", () => {
-  const html = examRowHTML({ name: "MAS-II", status: "scheduled", note: "Up next", date: "Jul 29" });
-  assert.match(html, /rec__date/);
-  assert.match(html, /Jul 29/);
-  assert.match(html, /Up next/); // status label still shown alongside the date
-});
-
 test("examRowHTML omits date node when no date given", () => {
   const html = examRowHTML({ name: "Exam 5", status: "notStarted" });
   assert.doesNotMatch(html, /rec__date/);
 });
 
-test("examRowHTML makes the row a cue button carrying the record label", () => {
-  const html = examRowHTML({ name: "MAS-II", status: "scheduled", note: "Up next" });
-  assert.match(html, /<button class="rec__cue"/);
-  assert.match(html, /data-cue="MAS-II"/);
-  assert.match(html, /data-sub="Up next"/);
-  // the accessible name has to say what pressing it does
-  assert.match(html, /aria-label="MAS-II — Up next\. Put on the record\."/);
+test("an exam row is not a control", () => {
+  // The record's label names what is playing now. A row that put an exam name
+  // on it would be making the label lie.
+  const html = examRowHTML({ name: "MAS-II", status: "scheduled", note: "Studying", date: "Sitting Oct" });
+  assert.doesNotMatch(html, /<button/);
+  assert.doesNotMatch(html, /data-cue/);
+  assert.doesNotMatch(html, /aria-label/);
+  assert.doesNotMatch(html, /aria-pressed/);
+  assert.match(html, /Sitting Oct/);
 });
 
-test("examRowHTML escapes HTML in the cue button's attributes", () => {
+test("no rendered exam row is a control", () => {
+  const html = renderExams(EXAMS, REQUIREMENTS);
+  assert.doesNotMatch(html, /<button/);
+  assert.doesNotMatch(html, /data-cue/);
+});
+
+test("examRowHTML escapes HTML in the name", () => {
   const html = examRowHTML({ name: '"><script>', status: "passed" });
   assert.doesNotMatch(html, /<script>/);
-  assert.match(html, /data-cue="&quot;&gt;/);
+  assert.match(html, /&quot;&gt;&lt;script&gt;/);
 });
 
 test("examRowHTML escapes HTML in user content", () => {
