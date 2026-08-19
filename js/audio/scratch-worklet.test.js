@@ -54,26 +54,50 @@ function refRead(d, pos) {
   return ((a0 * f + a1) * f + a2) * f + y1;
 }
 
-// Drives the processor the way the page will: a target that advances at the
-// commanded rate, posted once per block, stamped with audio time.
+// Drives the processor the way the page will: a target posted once per block,
+// carrying the feedforward rate the page computed for that post from its own
+// wall clock (performance.now()), not from audio time. `dtMs` is the
+// simulated gap on that wall clock since the PREVIOUS post — a constant by
+// default, equal to exactly one block's worth of audio time, so every
+// existing test below drives a perfectly uniform clock (and gets numerically
+// identical `rate` values to what this driver produced before the fix).
+// Passing an array of per-block gaps instead lets a test simulate an
+// irregular wall clock, including a zero-length gap — the animation-frame
+// pattern actually measured in a browser (task-10 report).
 function driver(startPos = 0, { left = signal(LEN), right = signal(LEN, 1.7) } = {}) {
   const p = makeProcessor();
   p.port.send({ type: "buffer", left, right });
   p.port.send({ type: "reset", pos: startPos });
   let target = startPos;
-  let at = 0;
+  let lastPos = startPos;
+  let haveLast = false;
   return {
     p, left, right,
-    run(rate, blocks) {
+    run(rate, blocks, dtMs = (BLOCK / SR) * 1000) {
       const out = [];
       for (let b = 0; b < blocks; b++) {
-        target += rate * BLOCK;
-        at += BLOCK / SR;
-        p.port.send({ type: "target", pos: target, at });
+        const gapMs = Array.isArray(dtMs) ? dtMs[b] : dtMs;
+        // Position advances by the TRUE rate times however much real time
+        // this gap represents, not by a fixed BLOCK — so an irregular `dtMs`
+        // models a record whose speed genuinely never changes while only the
+        // wall-clock spacing of the posts that report it does (exactly the
+        // measured defect: rAF cadence jitters, the record's actual speed
+        // does not).
+        target += rate * (gapMs / 1000) * SR;
+        // This is exactly deck-audio.js's setTurns computation: a rate
+        // derived from the wall-clock gap since the last post, or NaN when
+        // that gap isn't usable (the very first post, or a zero/negative
+        // gap) — the same signal the worklet treats as "no update this
+        // frame" rather than a record that stopped.
+        let instRate = NaN;
+        if (haveLast && gapMs > 0) instRate = (target - lastPos) / ((gapMs / 1000) * SR);
+        lastPos = target;
+        haveLast = true;
+        p.port.send({ type: "target", pos: target, rate: instRate });
         const before = p.cur;
         const chans = [new Float32Array(BLOCK), new Float32Array(BLOCK)];
         p.process([], [chans]);
-        out.push({ before, after: p.cur, rate: p.prevRate, l: chans[0], r: chans[1] });
+        out.push({ before, after: p.cur, rate: p.prevRate, nominal: p.nominal, l: chans[0], r: chans[1] });
       }
       return out;
     },
@@ -132,6 +156,40 @@ test("the rate holds steady — no flutter", () => {
   let worst = 0;
   for (const f of frames) worst = Math.max(worst, Math.abs(f.rate - 1));
   assert.ok(worst < 0.02, `rate stays at 1x (worst deviation ${worst.toFixed(4)})`);
+});
+
+test("an irregular animation-frame clock does not corrupt a constant rate", () => {
+  // Reproduces the measured defect (task-10 report): requestAnimationFrame
+  // can fire faster than the audio hardware callback, so the wall-clock gap
+  // between two posted targets is sometimes ~0ms — and, more generally, is
+  // never perfectly uniform. The record's TRUE rate never changes here, only
+  // the TIMING of the posts that report it does, including one zero-length
+  // gap. Every other test in this file drives a perfectly uniform posting
+  // clock (dtMs defaults to exactly one block), which is exactly why the old
+  // ctx.currentTime-based derivation's quantisation bug never showed up here.
+  //
+  // This asserts on `nominal` (the feedforward estimate itself) rather than
+  // on the end-to-end telemetry `rate`. The chase term has its own separate,
+  // deliberately-unchanged ripple whenever a target message arrives less
+  // often than a render quantum completes — a normal cadence mismatch,
+  // confirmed present (worst ~0.015 by hand with this same harness) even
+  // under a perfectly uniform posting clock with no irregularity at all.
+  // Mixing that in would make this assertion either too loose to catch a
+  // real derivation regression, or fail for a reason this fix does not own
+  // and must not touch. `nominal` isolates exactly the computation the fix
+  // changed.
+  const d = driver(1_000_000);
+  const trueBlockMs = (BLOCK / SR) * 1000; // ~2.9025ms, one render quantum
+  d.run(1, 40); // let the feedforward settle at 1x on a uniform clock first
+  const gaps = [
+    trueBlockMs * 2.7, trueBlockMs * 2.4, 0, trueBlockMs * 5.1,
+    trueBlockMs * 2.6, trueBlockMs * 2.9, trueBlockMs * 2.2, 0,
+    trueBlockMs * 3.3, trueBlockMs * 2.8, trueBlockMs * 2.5, trueBlockMs * 3.0,
+  ];
+  const frames = d.run(1, gaps.length, gaps);
+  let worst = 0;
+  for (const f of frames) worst = Math.max(worst, Math.abs(f.nominal - 1));
+  assert.ok(worst < 0.02, `feedforward rate stays at 1x through irregular timing (worst deviation ${worst.toFixed(4)})`);
 });
 
 test("a direction reversal lands within one animation frame", () => {
@@ -219,7 +277,7 @@ test("no NaN or Infinity across a direction reversal", () => {
 
 test("the rate clamp holds against an absurd throw", () => {
   const d = driver(0);
-  d.p.port.send({ type: "target", pos: 1e9, at: 1 });
+  d.p.port.send({ type: "target", pos: 1e9, rate: NaN });
   d.p.process([], [[new Float32Array(BLOCK), new Float32Array(BLOCK)]]);
   assert.ok(Math.abs(d.p.prevRate) <= MAX_RATE, `clamped to ${d.p.prevRate}`);
 });

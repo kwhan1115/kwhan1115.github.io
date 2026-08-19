@@ -41,6 +41,8 @@ export function createDeckAudio({ onState } = {}) {
   let abort = null;
   let muted = false;
   let telemetry = null;    // last {cur, rate, rms} the worklet posted
+  let ratePos = null;      // pos (samples) sent on the previous setTurns call
+  let rateAtMs = null;     // performance.now() at that call
 
   const report = (id, status) => onState?.({ id, status });
 
@@ -116,6 +118,11 @@ export function createDeckAudio({ onState } = {}) {
       // count means nothing to a track that just went on. Anchor here: from now
       // on, position is measured from this moment.
       origin = lastTurns;
+      // A rate carried over from the previous track would be a delta against
+      // a position measured from a completely different origin — drop it, so
+      // the first setTurns call for this track only plants an anchor.
+      ratePos = null;
+      rateAtMs = null;
       report(track.id, "playing");
     } catch (err) {
       if (err.name === "AbortError" || mine !== token) return;
@@ -136,11 +143,35 @@ export function createDeckAudio({ onState } = {}) {
     if (!Number.isFinite(turns)) return;
     lastTurns = turns;
     if (!node || origin === null) return;
-    node.port.postMessage({
-      type: "target",
-      pos: samplesFromTurns(turns - origin, ctx.sampleRate),
-      at: ctx.currentTime,
-    });
+
+    const pos = samplesFromTurns(turns - origin, ctx.sampleRate);
+
+    // The feedforward rate is computed HERE, from performance.now(), instead
+    // of inside the worklet from ctx.currentTime deltas. ctx.currentTime is
+    // quantised to whole render quanta (128 samples) and, measured in a real
+    // browser, frequently does not advance AT ALL between two consecutive
+    // animation frames whenever rAF runs faster than the audio hardware
+    // callback (deltas of 0, 3, or 4 quanta back to back was the observed
+    // pattern). A worklet deriving its rate from that clock turns one
+    // ordinary frame's worth of position travel into a near-doubled spike
+    // the instant the clock catches up — that spike was the measured pitch
+    // wobble. performance.now() carries none of that quantisation (measured
+    // smooth, sub-millisecond, no stalls, over the same frames), so this
+    // number is strictly more trustworthy than anything the worklet could
+    // reconstruct from ctx.currentTime.
+    const nowMs = performance.now();
+    let rate = NaN;
+    if (rateAtMs !== null) {
+      const dtMs = nowMs - rateAtMs;
+      // A non-positive gap can't be divided into a rate. NaN — not 0 — is
+      // the value the worklet is built to read as "no update this frame";
+      // sending 0 would tell it the record had genuinely stopped turning.
+      if (dtMs > 0) rate = (pos - ratePos) / ((dtMs / 1000) * ctx.sampleRate);
+    }
+    ratePos = pos;
+    rateAtMs = nowMs;
+
+    node.port.postMessage({ type: "target", pos, rate });
   }
 
   function setMuted(value) {
@@ -162,6 +193,8 @@ export function createDeckAudio({ onState } = {}) {
     // interval; this just closes the gap where the old one would otherwise
     // still be served.
     telemetry = null;
+    ratePos = null;
+    rateAtMs = null;
     const was = current;
     current = null;
     node?.port.postMessage({ type: "gain", value: 0 });

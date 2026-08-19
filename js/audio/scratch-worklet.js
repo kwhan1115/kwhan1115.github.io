@@ -32,8 +32,7 @@ class ScratchProcessor extends AudioWorkletProcessor {
 
     this.nominal = 0;    // rate implied by the target stream (feedforward)
     this.have = false;
-    this.lastAt = 0;     // audio time of the last target message
-    this.lastFrame = 0;  // this worklet's own clock at that message
+    this.lastFrame = 0;  // this worklet's own clock at the last target message
     this.frames = 0;
 
     this.chase = 6000;   // gentle: the chase only trims residual error
@@ -49,17 +48,21 @@ class ScratchProcessor extends AudioWorkletProcessor {
         this.right = m.right || m.left;   // a mono source plays down both sides
         this.len = m.left.length;
       } else if (m.type === "target") {
-        // The page reports where the head should be, once per animation frame.
-        // The rate that implies is the feedforward term. Deriving it from audio
-        // time rather than from block counts is what keeps animation-frame
-        // jitter out of the pitch.
-        const dt = m.at - this.lastAt;
-        if (this.have && dt > 0) {
-          const raw = (m.pos - this.target) / (dt * sampleRate);
-          this.nominal += (raw - this.nominal) * 0.35;
+        // The page reports where the head should be, once per animation frame,
+        // and now also the feedforward rate it computed for that report from
+        // its own performance.now() clock. This worklet used to derive that
+        // rate itself from ctx.currentTime deltas, but ctx.currentTime is
+        // quantised to whole render quanta and routinely does not advance
+        // between two consecutive animation frames — which turned one frame's
+        // worth of travel into a spike the instant the clock caught up. A
+        // light EMA still damps performance.now()'s own sampling jitter
+        // without erasing genuine frame-to-frame variation in rate: Δpos/Δt
+        // over the TRUE interval is correct even when intervals differ, so
+        // there is nothing left here to smooth away except noise.
+        if (this.have && Number.isFinite(m.rate)) {
+          this.nominal += (m.rate - this.nominal) * 0.35;
         }
         this.target = m.pos;
-        this.lastAt = m.at;
         this.lastFrame = this.frames;
         this.have = true;
       } else if (m.type === "reset") {
