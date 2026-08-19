@@ -35,7 +35,18 @@ class ScratchProcessor extends AudioWorkletProcessor {
     this.lastFrame = 0;  // this worklet's own clock at the last target message
     this.frames = 0;
 
-    this.chase = 6000;   // gentle: the chase only trims residual error
+    this.chase = 25000;  // gentle: the chase only trims residual error. Raised
+                          // from 6000 (task-10 fix report, one-clock addendum):
+                          // once the feedforward rate stopped being computed
+                          // from two disagreeing clocks, the remaining idle-rate
+                          // ripple was exactly the chase term's own sawtooth
+                          // (measured ~0.06 at 6000, matching the frame_samples
+                          // /chase relation). Slowing the chase further trims
+                          // that sawtooth; the feedforward nominal still carries
+                          // the pitch and still responds within one animation
+                          // frame, so this costs scratch responsiveness nothing
+                          // measurable (round trip and reversal tests both still
+                          // pass with wide margin at this value).
     this.maxRate = 8;
 
     this.acc = 0;

@@ -1,6 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toInt16 } from "./deck-audio.js";
+import { toInt16, nextTarget } from "./deck-audio.js";
+
+const SR = 44100;
+
+// Spins the CPU until `ms` of REAL wall-clock time has genuinely elapsed.
+// Used once below to reproduce, deterministically, the exact real-world
+// mismatch this test exists for: an internally self-sampled performance.now()
+// call landing a variable, real amount of time after the position it is
+// supposedly timestamping.
+function busyWaitMs(ms) {
+  const start = performance.now();
+  while (performance.now() - start < ms) { /* spin */ }
+}
 
 test("toInt16 preserves the waveform within quantisation error", () => {
   const f = new Float32Array(1000);
@@ -25,4 +37,54 @@ test("toInt16 clips instead of wrapping", () => {
 
 test("toInt16 handles an empty buffer", () => {
   assert.equal(toInt16(new Float32Array(0)).length, 0);
+});
+
+test("nextTarget uses the caller's timestamp, not its own clock", () => {
+  // Reproduces the second defect found after the first fix landed (task-10
+  // fix report, one-clock addendum): js/main.js has always advanced
+  // deck.state.turns using the requestAnimationFrame TIMESTAMP, but the
+  // pre-fix setTurns computed its feedforward rate from a SEPARATELY
+  // sampled performance.now() call, made after that frame's other work
+  // (measureFocus(), deck.step()) had already run. The two clocks agree on
+  // average but disagree by a few ms on any single frame -- exactly the
+  // kind of thing invisible to a test that calls code synchronously with no
+  // real elapsed time, which is why nothing caught it until a real browser
+  // measurement did.
+  //
+  // Position here advances on a perfectly uniform TRUE clock (true rate
+  // exactly 1x, 7.0-8.1ms/step -- the tight rAF-timestamp band actually
+  // measured in the browser). Two calling conventions are driven from the
+  // SAME true-position sequence:
+  //   OLD: nowMs omitted, so nextTarget falls back to ITS OWN
+  //        performance.now(), sampled after a busy-waited "per-frame work"
+  //        delay (5.8-10.2ms -- the wider, independently-jittered band also
+  //        measured in the browser, same mean, different value per frame).
+  //   NEW: nowMs is the exact timestamp that drove that step's position --
+  //        what js/main.js now passes through from its rAF `now`.
+  const trueSteps  = [7.3, 7.9, 6.9, 8.1, 7.5, 7.8, 7.0, 8.0, 7.6, 7.2];
+  const workDelays = [9.4, 6.1, 10.2, 5.8, 8.7, 6.6, 9.9, 6.4, 8.2, 7.1];
+
+  let trueMs = 0;
+  const oldState = { ratePos: null, rateAtMs: null };
+  let oldWorst = 0;
+  for (let i = 0; i < trueSteps.length; i++) {
+    trueMs += trueSteps[i];
+    const pos = 1 * (trueMs / 1000) * SR;   // true rate exactly 1x
+    busyWaitMs(workDelays[i]);              // the OLD code's real call-time lag
+    const { rate } = nextTarget(pos, SR, oldState);   // nowMs omitted -> its own clock
+    if (Number.isFinite(rate)) oldWorst = Math.max(oldWorst, Math.abs(rate - 1));
+  }
+
+  trueMs = 0;
+  const newState = { ratePos: null, rateAtMs: null };
+  let newWorst = 0;
+  for (let i = 0; i < trueSteps.length; i++) {
+    trueMs += trueSteps[i];
+    const pos = 1 * (trueMs / 1000) * SR;
+    const { rate } = nextTarget(pos, SR, newState, trueMs);   // explicit, matching clock
+    if (Number.isFinite(rate)) newWorst = Math.max(newWorst, Math.abs(rate - 1));
+  }
+
+  assert.ok(oldWorst >= 0.02, `sanity: the old self-clocked path shows real error (worst ${oldWorst.toFixed(4)})`);
+  assert.ok(newWorst < 0.02, `the one-clock fix stays within 0.02 of true rate (worst ${newWorst.toFixed(4)})`);
 });

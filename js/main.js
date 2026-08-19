@@ -381,8 +381,14 @@ function frame(now) {
   measureFocus();
   deck.step(dt);
   // The record is the clock. Everything the audio does — pitch, reverse,
-  // silence at a standstill — follows from this one line.
-  audio.setTurns(deck.state.turns);
+  // silence at a standstill — follows from this one line. `now` (the rAF
+  // timestamp) is passed through deliberately: it is the SAME clock that
+  // just advanced deck.state.turns via `dt` above, and the feedforward rate
+  // inside audio.setTurns has to be computed against that same clock, not a
+  // separately-sampled one, or the numerator (position) and denominator
+  // (elapsed time) disagree by however much measureFocus()/deck.step() just
+  // cost this frame.
+  audio.setTurns(deck.state.turns, now);
   stage?.draw(dt, deck.state.vel);
   drawEq(deck.state.vel, now);
 
