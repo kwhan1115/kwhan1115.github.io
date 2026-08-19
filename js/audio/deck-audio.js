@@ -71,6 +71,10 @@ export function createDeckAudio({ onState } = {}) {
     abort = new AbortController();
     current = track.id;
     origin = null;
+    // A stale reading from whatever track was playing before this one must
+    // not answer for this one — clear it now, synchronously, not after the
+    // new buffer's first pos message happens to arrive.
+    telemetry = null;
     report(track.id, "loading");
 
     try {
@@ -131,6 +135,16 @@ export function createDeckAudio({ onState } = {}) {
     abort?.abort();
     token++;
     origin = null;
+    // A silent record has to read as silent. Without this, getTelemetry()
+    // would keep answering with whatever rms was last measured before the
+    // stop — a completely silent record would then measure as still
+    // playing, the exact failure mode where a no-op and a pass look
+    // identical. The worklet itself keeps running (gain 0 mutes the output,
+    // it does not pause process()), so a fresh, legitimately-near-zero
+    // reading repopulates the cache on its own within one telemetry
+    // interval; this just closes the gap where the old one would otherwise
+    // still be served.
+    telemetry = null;
     const was = current;
     current = null;
     node?.port.postMessage({ type: "gain", value: 0 });
@@ -138,8 +152,12 @@ export function createDeckAudio({ onState } = {}) {
   }
 
   // The last telemetry the worklet posted, or null before the first message
-  // has arrived. This is the only window this module has into whether the
-  // DSP is actually doing what setTurns has been asking it to do.
+  // has arrived for the current track — that includes right after load()
+  // starts and right after stop(), both of which clear the cache rather than
+  // let it go on answering for a track that is no longer the one playing.
+  // This is the only window this module has into whether the DSP is actually
+  // doing what setTurns has been asking it to do, so a stale reading here
+  // would make a no-op and a pass look identical from the outside.
   function getTelemetry() {
     return telemetry;
   }
