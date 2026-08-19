@@ -18,6 +18,20 @@ const DRAG_SLOP = 4;
 // should read as setting the record down gently.
 const THROW_WINDOW = 160;
 
+/**
+ * What a press on the record means.
+ *
+ * The disc is the instrument and the centre label is the transport, so only the
+ * label answers a click. `keyboard` is a press with no coordinates (a
+ * MouseEvent with `detail === 0`), which cannot be "on the label" and must
+ * still work — it is the only way a keyboard user can stop the music.
+ */
+export function pressIntent({ onLabel, didDrag, keyboard }) {
+  if (keyboard) return "toggle";
+  if (didDrag) return "ignore";
+  return onLabel ? "toggle" : "ignore";
+}
+
 export function createDeck(root, { onChange, reduced = false } = {}) {
   const titleEl = root.querySelector(".record__title");
   const sideEl = root.querySelector(".record__side");
@@ -84,6 +98,10 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
     travel += Math.abs(delta);
     if (travel > DRAG_SLOP) didDrag = true;
     state.angle = wrapAngle(state.angle + delta);
+    // The pointer is driving, so stepSpin is not running — the drag has to keep
+    // the audio clock moving itself, or the one gesture that should make the
+    // most interesting sound would make none.
+    state.turns += delta / 360;
     samples.push({ angle: state.angle, t: e.timeStamp });
     if (samples.length > 12) samples.shift();
     paint();
@@ -102,20 +120,19 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
     // With motion reduced the throw plays out and then stops. Spinning forever
     // is the ambient animation they turned off; the throw is the one they asked
     // for.
-    if (!reduced) {
-      paused = false;
-      root.setAttribute("aria-pressed", "true");
-    }
+    if (!reduced) setPaused(false);
   }
 
   root.addEventListener("pointerup", release);
   root.addEventListener("pointercancel", release);
 
-  // A mouse drag ends in a click event too. Only treat it as a press when the
-  // pointer didn't actually move, or when it came from the keyboard.
+  // A mouse drag ends in a click event too, and only the centre label is the
+  // transport. `e.detail === 0` means the press came from the keyboard.
   root.addEventListener("click", (e) => {
-    if (didDrag && e.detail !== 0) { didDrag = false; return; }
-    togglePaused();
+    const onLabel = !!(e.target instanceof Element && e.target.closest(".record__label"));
+    const intent = pressIntent({ onLabel, didDrag, keyboard: e.detail === 0 });
+    didDrag = false;
+    if (intent === "toggle") togglePaused();
   });
 
   root.addEventListener("keydown", (e) => {
@@ -124,20 +141,22 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
       const dir = e.key === "ArrowRight" ? 1 : -1;
       state.angle = wrapAngle(state.angle + dir * 18);
       state.vel += dir * 260;
-      if (!reduced) {
-        paused = false;
-        root.setAttribute("aria-pressed", "true");
-      }
+      if (!reduced) setPaused(false);
       markUsed();
       paint();
       report();
     }
   });
 
-  function togglePaused() {
-    paused = !paused;
+  function setPaused(value) {
+    paused = value;
     root.setAttribute("aria-pressed", String(!paused));
+    root.classList.toggle("is-stopped", paused);
     markUsed();
+  }
+
+  function togglePaused() {
+    setPaused(!paused);
   }
 
   // ---- cueing -----------------------------------------------------------
@@ -172,5 +191,5 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
 
   paint();
   report();
-  return { step, cue, isBusy, state };
+  return { step, cue, isBusy, setPaused, state };
 }
