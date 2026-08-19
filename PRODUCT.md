@@ -26,10 +26,11 @@ Opened primarily on mobile from a social profile link. Static site served by Git
 
 - Single static page: `index.html` + `style.css` + `exams.js` + `js/` ES modules. No framework, bundler, backend, or analytics.
 - The exam tracker renders from data in `exams.js` (`EXAMS` array + pure helpers). The "X of N passed" summary and ACAS/FCAS credential progress must always derive from the data, never be hand-typed.
-- Pure logic carries `node --test` coverage: exam rendering, the record's spin physics, and the scroll maths behind the rail and nav.
+- Pure logic carries `node --test` coverage: exam rendering, the record's spin physics, the scroll maths behind the rail and nav, and the turn-to-sample mapping and scratch DSP behind the record's audio.
 - Must stay hand-editable with no toolchain and load instantly.
 - Deploy target repo name is fixed: `kwhan1115.github.io`.
 - Content sections: cover (name + playable record), about, links, music, food obsessions, photos, exam record.
+- The record actually plays music: it's an AudioWorklet-driven turntable, not a spinning picture. The five-row picker under the record is the way in — press a row to drop the needle, press it again (or the record's centre label) to lift it. Dragging the record scratches the audio in real time, forward or backward, at whatever rate the hand moves it. The Music section's musician list and the exam rows are read-only now; the record's label means one thing — what's actually playing — so nothing else is allowed to write to it.
 
 ## Brand Commitments
 
