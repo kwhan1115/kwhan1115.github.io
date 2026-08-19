@@ -6,6 +6,8 @@ import { scrollProgress, activeSection, waveHeights } from "./scroll.js";
 import { createDeck } from "./deck.js";
 import { createStage } from "./stage.js";
 import { createLightbox } from "./lightbox.js";
+import { TRACKS, trackPickerHTML } from "../tracks.js";
+import { createDeckAudio } from "./audio/deck-audio.js";
 
 const root = document.documentElement;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -40,17 +42,70 @@ const deck = createDeck(document.querySelector(".record"), {
   },
 });
 
-// Any section can put a track on the record. Pressing the cued one takes it off.
-const cueButtons = [...document.querySelectorAll("[data-cue]")];
-for (const btn of cueButtons) {
-  btn.setAttribute("aria-pressed", "false");
-  btn.addEventListener("click", () => {
-    const wasOn = btn.getAttribute("aria-pressed") === "true";
-    for (const b of cueButtons) b.setAttribute("aria-pressed", "false");
-    if (wasOn) { deck.cue(null); return; }
-    btn.setAttribute("aria-pressed", "true");
-    deck.cue(btn.dataset.cue, btn.dataset.sub);
+// ---------------------------------------------------------------- the music
+
+// Declared before createDeckAudio so the onState callback below closes over
+// the same binding this file later assigns into, not a variable that hasn't
+// been declared yet — it works either order since onState only fires later,
+// but this order doesn't depend on that.
+let pickerButtons = [];
+let playing = null;
+
+const audio = createDeckAudio({
+  onState({ id, status }) {
+    const btn = pickerButtons.find((b) => b.dataset.track === id);
+    if (!btn) return;
+    btn.dataset.state = status;
+    btn.setAttribute("aria-pressed", String(status === "playing"));
+    if (status === "failed") btn.disabled = true;
+  },
+});
+
+// No picker at all where there is no AudioWorklet: a list of tracks that
+// cannot play is worse than a record that was only ever a picture.
+if (audio.isSupported()) {
+  document.getElementById("track-picker").innerHTML = trackPickerHTML(TRACKS);
+  pickerButtons = [...document.querySelectorAll(".picker__btn")];
+
+  for (const btn of pickerButtons) {
+    btn.addEventListener("click", () => {
+      const track = TRACKS.find((t) => t.id === btn.dataset.track);
+      if (!track) return;
+
+      if (playing === track.id) {          // pressing the playing one lifts the needle
+        playing = null;
+        audio.stop();
+        deck.cue(null);
+        for (const b of pickerButtons) b.setAttribute("aria-pressed", "false");
+        return;
+      }
+
+      playing = track.id;
+      for (const b of pickerButtons) {
+        b.setAttribute("aria-pressed", "false");
+        if (b !== btn) delete b.dataset.state;
+      }
+      deck.cue(track.title, track.artist);
+      // A stopped record is silent by design, so a track picked while it is
+      // stopped would play nothing and say nothing. Drop the needle and start
+      // the platter. This is also the reduced-motion path, where it starts still.
+      deck.setPaused(false);
+      kick();
+      audio.load(track);
+    });
+  }
+
+  const muteBtn = document.getElementById("mute");
+  muteBtn.hidden = false;
+  muteBtn.addEventListener("click", () => {
+    const next = muteBtn.getAttribute("aria-pressed") !== "true";
+    muteBtn.setAttribute("aria-pressed", String(next));
+    muteBtn.querySelector(".mute__label").textContent = next ? "Sound off" : "Sound on";
+    audio.setMuted(next);
   });
+  // Muting leaves the record turning and the needle tracking, so unmuting
+  // lands where the music would have been — the same thing a volume knob
+  // does, and the opposite of what stopping does.
 }
 
 // ---------------------------------------------------------------- the stage
@@ -325,12 +380,17 @@ function frame(now) {
   // rather than a write/read ping-pong.
   measureFocus();
   deck.step(dt);
+  // The record is the clock. Everything the audio does — pitch, reverse,
+  // silence at a standstill — follows from this one line.
+  audio.setTurns(deck.state.turns);
   stage?.draw(dt, deck.state.vel);
   drawEq(deck.state.vel, now);
 
   // With motion reduced nothing animates on its own, so the loop only runs
-  // while the visitor is actually spinning the record.
-  if (!reduced || deck.isBusy()) raf = requestAnimationFrame(frame);
+  // while the visitor is actually spinning the record — or while a track is
+  // playing, since the worklet still needs a fresh target message each frame
+  // even when the picture itself has gone still.
+  if (!reduced || deck.isBusy() || playing) raf = requestAnimationFrame(frame);
   else raf = 0;
 }
 
