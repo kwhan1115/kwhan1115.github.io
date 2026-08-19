@@ -33,6 +33,8 @@ unless noted.
 | Encode | AAC 96 kbps `.m4a`, full length, nothing trimmed | 22.4 MB → 13.3 MB |
 | Buffer storage | Int16, not Float32 | Halves peak memory, 150 MB → 75 MB |
 | Engine | AudioWorklet, position-driven with feedforward | Proven by spike, see "Prior art" |
+| Pause control | The record's centre label, glyph on hover/focus | Behaviour already existed; it was invisible |
+| Outer disc | Drag-only — no longer pauses on click | One pause target, so the centre means something |
 
 ## Prior art — the spike
 
@@ -205,6 +207,8 @@ createDeckAudio({ onState }) -> { load(track), setTurns(turns), setMuted(bool), 
   why — which is also the reduced-motion path, where the record starts still.
 - Per frame: `audio.setTurns(deck.state.turns)`.
 - Delete the `[data-cue]` button wiring (exam rows and credits).
+- The needle cursor already switches shape over `.record`; it needs a third
+  state over `.record__label` so the pointer agrees with the affordance.
 
 ## UI
 
@@ -223,6 +227,46 @@ its aria-label and `data-cue`/`data-sub` attributes go with it.
 **Colour rule carried over:** red/magenta is reserved for "running past its own
 speed" on this page. The picker must not spend it on ordinary selection.
 
+### The transport — pausing from the centre
+
+Verified on the live site 2026-08-19: clicking the centre **already** toggles
+pause (`aria-pressed` flips `true` → `false`), because `.record` is one button
+and the label is a descendant. Nothing on screen says so. This is a
+discoverability change, not a new capability.
+
+**Affordance.** At rest the label reads normally — title and artist. On hover
+or keyboard focus the text dims and a pause bar fades in over it; when the
+record is stopped the glyph is a play triangle instead. The label is the only
+place the glyph appears.
+
+**Hit areas split:**
+
+| region | pointer | keyboard |
+|---|---|---|
+| outer disc | drag, throw, scratch — **no longer pauses on click** | arrow keys nudge |
+| centre label | play / pause | space or enter |
+
+**No nested button.** `.record` stays a single `<button>`; the label is not
+promoted to its own control, because a button inside a button is invalid and
+breaks assistive tech. The click handler hit-tests
+`e.target.closest(".record__label")` and only toggles for the centre. This
+keeps one focusable control, so keyboard behaviour is unchanged: space and
+enter pause, arrows nudge.
+
+**A drag that begins on the label still spins the record.** The existing
+`DRAG_SLOP` / `didDrag` guard already distinguishes a click from a drag; the
+label must not become a dead zone in the middle of the instrument.
+
+**Touch devices have no hover.** Under `(hover: none)` the glyph is shown
+persistently rather than on approach, otherwise the control is invisible on
+every phone. This is a real branch in the CSS, not an afterthought.
+
+**How pause sounds.** The record brakes over `BRAKE = 0.24s` rather than
+cutting, so the pitch falls away like a turntable losing its motor, and
+resuming winds back up to 33⅓. This is free — it falls out of position-driven
+playback and requires no audio-specific code. Do not replace it with a gain
+mute.
+
 ## Accessibility
 
 - Each picker button is a real `<button>` with `aria-pressed`.
@@ -233,6 +277,12 @@ speed" on this page. The picker must not spend it on ordinary selection.
 - Nothing about the feature is pointer-only. The record already answers arrow
   keys; the picker is keyboard-operable by construction.
 - Mute is reachable by keyboard and labelled.
+- The record's `aria-label` must be rewritten: it currently promises "Drag to
+  spin it, arrow keys to nudge, space to stop", which stays true, but the
+  centre-only pause target should be stated so a screen-reader user is not
+  told to click a disc that no longer answers.
+- The pause glyph is decorative (`aria-hidden`); `aria-pressed` on `.record`
+  remains the machine-readable state.
 
 ## Error handling
 
@@ -255,6 +305,7 @@ Node `--test`, matching the repo's existing convention. Current baseline is 57.
 | `tracks.test.js` | Manifest well-formed, ids unique, picker HTML escapes, every `src` under `./assets/audio/` |
 | `js/spin.test.js` | `turns` accumulates signed and unwrapped; survives the 0/360 seam; frame-rate independent |
 | `exams.test.js` | Rows are no longer buttons; no `data-cue` survives |
+| `js/deck.test.js` (new) | A click on the label toggles paused; a click on the outer disc does not; a drag beginning on the label spins and does not toggle |
 
 **Browser verification is required, not optional.** The feature's evidence is
 partly an absence (no flutter, no click), and a no-op looks identical to a pass.
