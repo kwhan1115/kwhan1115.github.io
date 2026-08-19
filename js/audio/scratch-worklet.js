@@ -42,7 +42,7 @@ class ScratchProcessor extends AudioWorkletProcessor {
                           // (~7.7ms) rAF cadence was hiding a worse case at an
                           // ordinary 60Hz (16.7ms) frame. Calibrated against a
                           // real measurement (~8% off theory), 50000 predicts
-                          // ~0.016 spread at 60Hz -- under the 0.02 bar with
+                          // ~0.016 spread at 60Hz — under the 0.02 bar with
                           // margin, not landing on the line. The feedforward
                           // nominal still carries the pitch and still responds
                           // within one animation frame regardless of chase, so
@@ -83,8 +83,15 @@ class ScratchProcessor extends AudioWorkletProcessor {
       } else if (m.type === "reset") {
         this.cur = m.pos;
         this.target = m.pos;
-        this.prevRate = 0;
-        this.nominal = 0;
+        // The caller knows the record's current spin and seeds it here, so
+        // playback starts at roughly the right pitch immediately instead of
+        // climbing to it from a cold 0 over the next several target
+        // messages — audible as a track starting too fast or too slow and
+        // then settling. An absent or non-finite seed falls back to the old
+        // silent-start behaviour (0), never to NaN.
+        const seed = Number.isFinite(m.rate) ? m.rate : 0;
+        this.prevRate = seed;
+        this.nominal = seed;
         this.lastFrame = this.frames;
         this.have = false;    // the next target only sets the anchor, not a rate
       } else if (m.type === "gain") {

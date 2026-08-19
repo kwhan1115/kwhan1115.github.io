@@ -56,6 +56,10 @@ let pickerButtons = [];
 let playing = null;
 
 const audio = createDeckAudio({
+  // Lets deck-audio.js seed the worklet's feedforward with the record's
+  // CURRENT spin at the moment a track loads, instead of starting cold at 0
+  // and climbing to the true rate over several target messages.
+  getVel: () => deck.state.vel,
   onState({ id, status }) {
     const btn = pickerButtons.find((b) => b.dataset.track === id);
     if (!btn) return;

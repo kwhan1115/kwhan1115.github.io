@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { toInt16, nextTarget } from "./deck-audio.js";
+import { MAX_DT } from "../spin.js";
 
 const SR = 44100;
 
@@ -46,18 +47,18 @@ test("nextTarget uses the caller's timestamp, not its own clock", () => {
   // pre-fix setTurns computed its feedforward rate from a SEPARATELY
   // sampled performance.now() call, made after that frame's other work
   // (measureFocus(), deck.step()) had already run. The two clocks agree on
-  // average but disagree by a few ms on any single frame -- exactly the
+  // average but disagree by a few ms on any single frame — exactly the
   // kind of thing invisible to a test that calls code synchronously with no
   // real elapsed time, which is why nothing caught it until a real browser
   // measurement did.
   //
   // Position here advances on a perfectly uniform TRUE clock (true rate
-  // exactly 1x, 7.0-8.1ms/step -- the tight rAF-timestamp band actually
+  // exactly 1x, 7.0-8.1ms/step — the tight rAF-timestamp band actually
   // measured in the browser). Two calling conventions are driven from the
   // SAME true-position sequence:
   //   OLD: nowMs omitted, so nextTarget falls back to ITS OWN
   //        performance.now(), sampled after a busy-waited "per-frame work"
-  //        delay (5.8-10.2ms -- the wider, independently-jittered band also
+  //        delay (5.8-10.2ms — the wider, independently-jittered band also
   //        measured in the browser, same mean, different value per frame).
   //   NEW: nowMs is the exact timestamp that drove that step's position --
   //        what js/main.js now passes through from its rAF `now`.
@@ -87,4 +88,54 @@ test("nextTarget uses the caller's timestamp, not its own clock", () => {
 
   assert.ok(oldWorst >= 0.02, `sanity: the old self-clocked path shows real error (worst ${oldWorst.toFixed(4)})`);
   assert.ok(newWorst < 0.02, `the one-clock fix stays within 0.02 of true rate (worst ${newWorst.toFixed(4)})`);
+});
+
+test("nextTarget clamps its divisor to MAX_DT, matching stepSpin's own cap on turns", () => {
+  // Reproduces a defect found from a real "the track starts a little fast,
+  // then settles" report, confirmed by instrumenting requestAnimationFrame
+  // directly in a real (non-headless) browser: a callback can be scheduled
+  // and then not actually fire until hundreds of ms later, so its `now`
+  // argument is stale by that amount; the very next frame's `now` then
+  // jumps forward to catch up, producing exactly one oversized dt right
+  // when a track has just reset the audio clock — the worst possible
+  // moment, since the feedforward has no prior estimate to fall back on.
+  //
+  // stepSpin already caps turns' advance at MAX_DT-worth of the record's
+  // rate for a frame like this (js/spin.js, "a backgrounded tab hands back
+  // a huge dt"). This position delta simulates exactly that: MAX_DT seconds
+  // of true 1x motion, credited despite a much larger real gap having
+  // elapsed. Dividing by the FULL gap (the pre-fix behaviour) understates
+  // the rate; dividing by the same MAX_DT ceiling recovers the true rate.
+  const SR = 44100;
+  const trueRate = 1;
+  const cappedPos = trueRate * MAX_DT * SR;   // exactly what stepSpin credited
+  const staleGapMs = 400;                     // the measured real-world gap
+
+  const state = { ratePos: 0, rateAtMs: 0 };
+  const { rate } = nextTarget(cappedPos, SR, state, staleGapMs);
+  assert.ok(Math.abs(rate - trueRate) < 1e-9, `recovers the true rate (got ${rate})`);
+});
+
+test("nextTarget's clamp does not touch a normal, small gap", () => {
+  // The clamp must be a no-op for the overwhelming common case — every
+  // existing timing test in this file and in scratch-worklet.test.js
+  // depends on that remaining true.
+  const SR = 44100;
+  const state = { ratePos: 0, rateAtMs: 0 };
+  const normalGapMs = 7.5;                    // well under MAX_DT * 1000
+  const pos = 1 * (normalGapMs / 1000) * SR;  // true rate exactly 1x
+  const { rate } = nextTarget(pos, SR, state, normalGapMs);
+  assert.ok(Math.abs(rate - 1) < 1e-9, `unclamped gap still reads 1x (got ${rate})`);
+});
+
+test("an unclamped divisor would have understated the same scenario (sanity)", () => {
+  // Guards the two tests above: proves the scenario actually distinguishes
+  // clamped from unclamped, so a future refactor that quietly drops the
+  // clamp fails loudly here rather than in a real browser again.
+  const SR = 44100;
+  const trueRate = 1;
+  const cappedPos = trueRate * MAX_DT * SR;
+  const staleGapMs = 400;
+  const unclamped = cappedPos / ((staleGapMs / 1000) * SR);
+  assert.ok(Math.abs(unclamped - trueRate) > 0.5, `sanity: uncapped divisor is badly wrong (${unclamped})`);
 });

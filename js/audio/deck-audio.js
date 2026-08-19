@@ -5,8 +5,9 @@
 // This file is the part that can only run in a browser, so it is kept thin on
 // purpose.
 
-import { samplesFromTurns } from "./groove.js";
+import { samplesFromTurns, clampRate, rateFromVel } from "./groove.js";
 import { WORKLET_SOURCE, PROCESSOR_NAME } from "./scratch-worklet.js";
+import { MAX_DT } from "../spin.js";
 
 // The source files are 44.1kHz. A default 48kHz context would make
 // decodeAudioData resample every track on the way in — a pointless pass, and
@@ -49,10 +50,23 @@ export function toInt16(f32) {
  * what makes the numerator (position travel) and denominator (elapsed
  * time) agree.
  */
-export function nextTarget(pos, sampleRate, state, nowMs = performance.now()) {
+export function nextTarget(pos, sampleRate, state, nowMs = performance.now(), maxDtMs = MAX_DT * 1000) {
   let rate = NaN;
   if (state.rateAtMs !== null) {
-    const dtMs = nowMs - state.rateAtMs;
+    // Clamped to the SAME ceiling stepSpin uses for turns itself (task-6-fix
+    // defect, found from a real "the track starts a little fast" report and
+    // confirmed by instrumenting requestAnimationFrame directly: a callback
+    // can be scheduled, then not actually fire until several hundred ms
+    // later, handing frame() a `now` that is stale by that same amount; the
+    // NEXT frame's `now` then jumps forward to catch up, producing exactly
+    // one oversized dt). turns only ever advances by MAX_DT-worth of rate
+    // for such a frame — stepSpin already caps it — so dividing by the
+    // FULL, uncapped gap here understates the true rate by exactly that
+    // proportion, and that one bad sample takes the worklet's EMA a couple
+    // hundred ms to age back out. Clamping the divisor to match keeps the
+    // numerator (a capped position delta) and denominator (the time that
+    // delta is actually credited to) telling the same story.
+    const dtMs = Math.min(nowMs - state.rateAtMs, maxDtMs);
     // A non-positive gap can't be divided into a rate. NaN — not 0 — is the
     // value the worklet is built to read as "no update this frame"; sending
     // 0 would tell it the record had genuinely stopped turning.
@@ -63,7 +77,7 @@ export function nextTarget(pos, sampleRate, state, nowMs = performance.now()) {
   return { rate };
 }
 
-export function createDeckAudio({ onState } = {}) {
+export function createDeckAudio({ onState, getVel } = {}) {
   let ctx = null;
   let node = null;
   // Memoised setup: every load() awaits the SAME promise, so two overlapping
@@ -146,7 +160,13 @@ export function createDeckAudio({ onState } = {}) {
       const right = decoded.numberOfChannels > 1 ? toInt16(decoded.getChannelData(1)) : left;
       const transfer = right === left ? [left.buffer] : [left.buffer, right.buffer];
       node.port.postMessage({ type: "buffer", left, right }, transfer);
-      node.port.postMessage({ type: "reset", pos: 0 });
+      // Seed the worklet's feedforward with the record's CURRENT spin, not
+      // silence. Without this, the worklet's nominal rate starts at 0 and has
+      // to climb to the true rate over several EMA-smoothed target messages
+      // (tens to hundreds of ms) — which is exactly what let a freshly
+      // picked track visibly ramp up to speed instead of starting at it.
+      const seedRate = clampRate(rateFromVel(getVel?.() ?? 0));
+      node.port.postMessage({ type: "reset", pos: 0, rate: seedRate });
       node.port.postMessage({ type: "gain", value: muted ? 0 : 1 });
 
       // The record has been turning since the page loaded, so its rotation
@@ -155,7 +175,8 @@ export function createDeckAudio({ onState } = {}) {
       origin = lastTurns;
       // A rate carried over from the previous track would be a delta against
       // a position measured from a completely different origin — drop it, so
-      // the first setTurns call for this track only plants an anchor.
+      // the first setTurns call for this track only plants an anchor and
+      // does not immediately fight the seed above with a stale rate.
       rateState = { ratePos: null, rateAtMs: null };
       report(track.id, "playing");
     } catch (err) {

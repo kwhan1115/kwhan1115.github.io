@@ -25,3 +25,18 @@ export function clampRate(rate) {
   if (Number.isNaN(rate) || rate === undefined) return 0;
   return Math.max(-MAX_RATE, Math.min(MAX_RATE, rate));
 }
+
+/**
+ * The audio rate implied by the record's current angular velocity (deg/s).
+ * Exactly 1 at IDLE_VEL, because SECONDS_PER_TURN was tuned so idle spin
+ * plays back at real speed — so this is the same "one revolution is one
+ * revolution's worth of audio" rule, just run forwards from velocity instead
+ * of from a position delta. Used to seed the worklet's feedforward the
+ * moment a track loads: without a seed, the worklet has to rediscover
+ * whatever the record is already doing through several EMA-smoothed target
+ * messages, which is what let a freshly picked track visibly climb to its
+ * correct pitch instead of starting there.
+ */
+export function rateFromVel(vel) {
+  return (vel / 360) * SECONDS_PER_TURN;
+}

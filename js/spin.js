@@ -20,8 +20,11 @@ const SETTLE = 0.55;
 const BRAKE = 0.24;
 
 // A backgrounded tab hands back a huge dt. Cap it so one frame can't teleport
-// the record halfway round the label.
-const MAX_DT = 0.1;
+// the record halfway round the label. Exported: deck-audio.js's nextTarget
+// clamps its own elapsed-time divisor to the same ceiling, so a frame large
+// enough to trigger this clamp cannot also understate the audio rate by
+// dividing the (already-capped) turns advance by the FULL, uncapped gap.
+export const MAX_DT = 0.1;
 
 export function wrapAngle(deg) {
   const a = deg % 360;

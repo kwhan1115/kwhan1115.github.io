@@ -112,6 +112,52 @@ test("MAX_RATE in the worklet source agrees with groove.js", () => {
   assert.equal(Number(m[1]), MAX_RATE);
 });
 
+test("a seeded reset sets nominal and prevRate immediately, not just after a target message", () => {
+  // Task 6-fix defect: nominal used to always reset to 0 and had to climb to
+  // the true rate via several EMA-smoothed target messages, which is what
+  // let a freshly picked track visibly ramp up to speed. The caller now
+  // knows the record's current spin at the moment it resets the deck, so it
+  // seeds the worklet directly instead of letting it rediscover the rate.
+  const p = makeProcessor();
+  p.port.send({ type: "buffer", left: signal(LEN), right: signal(LEN, 1.7) });
+  p.port.send({ type: "reset", pos: 1000, rate: 1 });
+  assert.equal(p.nominal, 1);
+  assert.equal(p.prevRate, 1);
+});
+
+test("the very first block after a seeded reset already plays near the seed, not a cold start", () => {
+  const p = makeProcessor();
+  p.port.send({ type: "buffer", left: signal(LEN), right: signal(LEN, 1.7) });
+  p.port.send({ type: "reset", pos: 1000, rate: 1 });
+  const before = p.cur;
+  const chans = [new Float32Array(BLOCK), new Float32Array(BLOCK)];
+  p.process([], [chans]);
+  const stepSize = (p.cur - before) / BLOCK;
+  assert.ok(Math.abs(stepSize - 1) < 0.02, `first block already near 1x (${stepSize.toFixed(4)})`);
+});
+
+test("a seeded reset at a non-1x rate is honoured (a throw or scratch in progress when a track is picked)", () => {
+  const p = makeProcessor();
+  p.port.send({ type: "buffer", left: signal(LEN), right: signal(LEN, 1.7) });
+  p.port.send({ type: "reset", pos: 1000, rate: -2.5 });
+  assert.equal(p.nominal, -2.5);
+  assert.equal(p.prevRate, -2.5);
+});
+
+test("an absent or non-finite seed rate falls back to a cold 0, never NaN", () => {
+  const p1 = makeProcessor();
+  p1.port.send({ type: "buffer", left: signal(LEN), right: signal(LEN, 1.7) });
+  p1.port.send({ type: "reset", pos: 0 });   // no rate field at all — old callers, old behaviour
+  assert.equal(p1.nominal, 0);
+  assert.equal(p1.prevRate, 0);
+
+  const p2 = makeProcessor();
+  p2.port.send({ type: "buffer", left: signal(LEN), right: signal(LEN, 1.7) });
+  p2.port.send({ type: "reset", pos: 0, rate: NaN });
+  assert.equal(p2.nominal, 0);
+  assert.equal(p2.prevRate, 0);
+});
+
 test("negative rate walks the read head backwards", () => {
   const d = driver(20000);
   d.run(1, 40);
