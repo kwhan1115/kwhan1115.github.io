@@ -51,6 +51,9 @@ test("an exam row is not a control", () => {
 
 test("no rendered exam row is a control", () => {
   const html = renderExams(EXAMS, REQUIREMENTS);
+  // Positive assertion: rows actually rendered. Without it, the negative assertions
+  // would pass vacuously if renderExams returned an empty string or broke entirely.
+  assert.match(html, /rec__name/);
   assert.doesNotMatch(html, /<button/);
   assert.doesNotMatch(html, /data-cue/);
 });
