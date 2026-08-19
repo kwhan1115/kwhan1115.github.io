@@ -158,3 +158,38 @@ test("stepSpin clamps an absurd frame time (tab was backgrounded)", () => {
   assert.ok(Number.isFinite(s.angle) && Number.isFinite(s.vel));
   assert.ok(s.vel < 4000, "velocity should have decayed, not exploded");
 });
+
+test("stepSpin accumulates turns, unwrapped", () => {
+  const s = { angle: 0, vel: IDLE_VEL, grabbed: false, turns: 0 };
+  // Ten seconds at 33 1/3 rpm is 5.555… revolutions. Turns must keep counting
+  // past 1 — a wrapped value would be useless as an audio clock.
+  for (let i = 0; i < 1000; i++) stepSpin(s, 0.01);
+  assert.ok(Math.abs(s.turns - (IDLE_VEL * 10) / 360) < 1e-6, `turns ${s.turns}`);
+});
+
+test("stepSpin counts turns backwards when the record runs backwards", () => {
+  const s = { angle: 0, vel: -IDLE_VEL, grabbed: false, turns: 0 };
+  stepSpin(s, 0.05, { paused: true });   // paused so vel doesn't ease to idle
+  assert.ok(s.turns < 0, `turns went negative (${s.turns})`);
+});
+
+test("stepSpin leaves turns alone while the record is grabbed", () => {
+  const s = { angle: 10, vel: 0, grabbed: true, turns: 4.25 };
+  stepSpin(s, 0.5);
+  assert.equal(s.turns, 4.25);
+});
+
+test("turns and angle agree — turns is angle without the wrapping", () => {
+  const s = { angle: 0, vel: IDLE_VEL, grabbed: false, turns: 0 };
+  for (let i = 0; i < 60; i++) stepSpin(s, 1 / 60);
+  assert.ok(Math.abs(wrapAngle(s.turns * 360) - s.angle) < 1e-6,
+    `wrapped turns (${wrapAngle(s.turns * 360)}) matches angle (${s.angle})`);
+});
+
+test("turns advance is frame-rate independent at a steady speed", () => {
+  const coarse = { angle: 0, vel: IDLE_VEL, grabbed: false, turns: 0 };
+  const fine = { angle: 0, vel: IDLE_VEL, grabbed: false, turns: 0 };
+  stepSpin(coarse, 0.1);
+  for (let i = 0; i < 10; i++) stepSpin(fine, 0.01);
+  assert.ok(Math.abs(coarse.turns - fine.turns) < 1e-9);
+});

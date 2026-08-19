@@ -70,7 +70,7 @@ export function rpmLabel(vel) {
 
 /**
  * Advance the deck one frame, in place.
- * `state` is { angle, vel, grabbed }. `dt` is seconds.
+ * `state` is { angle, vel, grabbed, turns }. `dt` is seconds.
  * While grabbed the pointer owns the angle, so physics stays out of it.
  * Otherwise velocity eases toward idle (or toward a stop when paused) on an
  * exponential curve, which makes the result frame-rate independent.
@@ -85,6 +85,13 @@ export function stepSpin(state, dt, { paused = false } = {}) {
   // Exponential decay never quite reaches zero; park it once it's under a
   // fraction of a degree per second so the loop can idle.
   if (paused && Math.abs(state.vel) < 0.4) state.vel = 0;
-  state.angle = wrapAngle(state.angle + state.vel * step);
+
+  // `angle` is wrapped because that is what a CSS rotate() wants. `turns` is
+  // the same travel left unwrapped, because it is the audio's clock: playback
+  // position is a function of how far the record has turned, and a value that
+  // jumps at the 0/360 seam would jump the needle with it.
+  const travel = state.vel * step;
+  state.angle = wrapAngle(state.angle + travel);
+  state.turns += travel / 360;
   return state;
 }

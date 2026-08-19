@@ -23,7 +23,7 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
   const sideEl = root.querySelector(".record__side");
   const defaults = { title: titleEl.innerHTML, side: sideEl.textContent };
 
-  const state = { angle: 0, vel: reduced ? 0 : IDLE_VEL, grabbed: false };
+  const state = { angle: 0, vel: reduced ? 0 : IDLE_VEL, grabbed: false, turns: 0 };
   let paused = reduced;
   let cued = null;              // the track another section put on, if any
   let samples = [];
