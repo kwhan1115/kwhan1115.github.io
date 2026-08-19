@@ -450,9 +450,11 @@ html:not(.ready) .wave { display: none; }
   display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .55rem;
   width: 100%; padding: .42rem .2rem; margin: 0;
   border: 0; background: none; font: inherit; text-align: left; color: inherit;
-  cursor: pointer; transition: background-color .18s ease, padding-left .25s var(--ease);
+  cursor: pointer; transition: background-color .18s ease, transform .25s var(--ease);
 }
-.picker__btn:hover { background: rgba(199, 125, 255, .07); padding-left: .5rem; }
+/* translateX, not padding-left: same .3rem indent, but a transform composites
+   instead of triggering layout on every hover. */
+.picker__btn:hover { background: rgba(199, 125, 255, .07); transform: translateX(.3rem); }
 .picker__text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .picker__title {
   font-size: .78rem; font-weight: 500;
@@ -490,6 +492,9 @@ html:not(.ready) .wave { display: none; }
   font-family: var(--mono); font-size: .64rem; letter-spacing: .06em;
   color: var(--muted); transition: color .18s ease;
 }
+/* An author `display` beats the UA sheet's `[hidden] { display: none }`, so
+   the attribute needs saying again or it is decoration. */
+.mute[hidden] { display: none; }
 .mute:hover { color: var(--ink); }
 .mute__mark {
   width: 9px; height: 9px; border-radius: 1px;
