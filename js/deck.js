@@ -148,11 +148,14 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
     }
   });
 
-  function setPaused(value) {
+  // `silent` lets construction set the initial paused state without marking
+  // the record "used" — markUsed() hides the "drag me" hint, and that hint
+  // must survive until an actual interaction, not disappear at load time.
+  function setPaused(value, { silent = false } = {}) {
     paused = value;
     root.setAttribute("aria-pressed", String(!paused));
     root.classList.toggle("is-stopped", paused);
-    markUsed();
+    if (!silent) markUsed();
   }
 
   function togglePaused() {
@@ -186,8 +189,12 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
   const isBusy = () => state.grabbed || Math.abs(state.vel) > 0.5;
 
   // The markup says the record is playing, because normally it is. With motion
-  // reduced it starts still, so say so.
-  if (reduced) root.setAttribute("aria-pressed", "false");
+  // reduced it starts still, so say so — through setPaused, so the
+  // aria-pressed attribute and the is-stopped class can never disagree about
+  // whether the record is stopped. Silent because this is construction, not
+  // a user interaction, and must not hide the "drag me" hint before anyone
+  // has touched the record.
+  if (reduced) setPaused(true, { silent: true });
 
   paint();
   report();
