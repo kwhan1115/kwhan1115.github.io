@@ -4,7 +4,7 @@
 
 ## World
 
-**"Liner Notes" — a jazz LP record sleeve, and the record plays.** Grounded in Kyuwon's jazz-piano world (Hiromi, Evans, Kapustin, Garner). The page is a record sleeve: a bold marquee cover, and the content laid out like sleeve copy — liner-note prose, a personnel/track credit list, a catalog-numbered menu, a contact-sheet photo strip, and the exam progress as a pressed-in ledger/scorecard.
+**"Liner Notes" — a jazz LP record sleeve, and the record plays.** Grounded in Kyuwon's jazz-piano world (Hiromi, Evans, Garner, Anomalie). The page is a record sleeve: a bold marquee cover, and the content laid out like sleeve copy — liner-note prose, a personnel/track credit list, a catalog-numbered menu, a contact-sheet photo strip, and the exam progress as a pressed-in ledger/scorecard.
 
 The vinyl is not decoration. It is the page's one interactive instrument: draggable, throwable, scratchable, and addressable from other sections — musician names and exam rows cue themselves onto its label. Everything else stays quiet around it.
 
