@@ -32,6 +32,12 @@ class ScratchProcessor extends AudioWorkletProcessor {
 
     this.nominal = 0;    // rate implied by the target stream (feedforward)
     this.have = false;
+    this.pendingSnap = false;   // true for a short window after a reset; see
+                                 // the target handler below for what it does
+                                 // and process() for why it is time-bounded
+                                 // rather than tied to any message signal.
+    this.snapUntilFrame = 0;    // this.frames value at which pendingSnap
+                                 // expires — set on every reset.
     this.lastFrame = 0;  // this worklet's own clock at the last target message
     this.frames = 0;
 
@@ -52,6 +58,24 @@ class ScratchProcessor extends AudioWorkletProcessor {
                           // back under the 0.02 bar in ~32ms, well below any
                           // audible threshold).
     this.maxRate = 8;
+
+    // How long a reset stays in snap mode before the ordinary chase takes
+    // over. This has to be real elapsed TIME (worklet frames), not "wait for
+    // the first target" or "wait for the first rendered block with a real
+    // buffer" — both were tried and both measured broken in a real browser.
+    // "First target" leaves later messages in the same startup burst
+    // unsnapped (see the target handler's comment). "First block with a
+    // real buffer" is worse than a no-op: deck-audio.js always posts the
+    // "buffer" message before "reset" (see load()), so this.left is
+    // already truthy by the moment "reset" itself runs — a browser trace
+    // confirmed process() clears that gate on its very first tick after
+    // reset, before a single target had been snapped (0 snaps logged, vs.
+    // the 7+ that a real needle-drop actually needs). 300ms is ~9x the
+    // ~34ms/1518-sample gap this bug was originally measured at, so it
+    // comfortably covers a slow or loaded startup, while staying far too
+    // short to ever overlap ordinary mid-track scratching, which only a
+    // fresh reset (a new track, or dragging the record) can trigger anyway.
+    this.SNAP_WINDOW = 13230;  // 300ms at 44100Hz
 
     this.acc = 0;
     this.sum = 0;
@@ -74,8 +98,37 @@ class ScratchProcessor extends AudioWorkletProcessor {
         // without erasing genuine frame-to-frame variation in rate: Δpos/Δt
         // over the TRUE interval is correct even when intervals differ, so
         // there is nothing left here to smooth away except noise.
-        if (this.have && Number.isFinite(m.rate)) {
-          this.nominal += (m.rate - this.nominal) * 0.35;
+        if (this.pendingSnap && this.frames < this.snapUntilFrame) {
+          // A reset means "drop the needle here" — there is nothing yet to
+          // converge toward, so any gap between this pos and cur is purely
+          // an artifact of message timing, not the head falling behind.
+          // Chasing it the ordinary way was an audible pitch glide on every
+          // track change. A real browser trace showed WHY snapping only the
+          // first post-reset target isn't enough: "reset" and the first
+          // handful of "target" messages can be delivered to this worklet
+          // as one back-to-back batch (measured 7 targets arriving before
+          // this worklet's clock had advanced a single sample past the
+          // reset) — an artifact of however the browser happened to
+          // schedule the audio thread against the main thread that
+          // particular run, not something the page controls. Snapping only
+          // the first of that batch leaves the rest to fall through to the
+          // ordinary EMA/chase path below with cur still pinned at the
+          // first snap's position, recreating the exact gap this exists to
+          // close. So keep snapping on EVERY target for the whole window,
+          // not just the first. Adopting each message's own rate too
+          // (rather than leaving the reset's seed to decay toward it via
+          // the EMA below) means playback starts at speed immediately
+          // instead of ramping up to it.
+          this.cur = m.pos;
+          if (Number.isFinite(m.rate)) {
+            this.nominal = m.rate;
+            this.prevRate = m.rate;
+          }
+        } else {
+          this.pendingSnap = false;
+          if (Number.isFinite(m.rate)) {
+            this.nominal += (m.rate - this.nominal) * 0.35;
+          }
         }
         this.target = m.pos;
         this.lastFrame = this.frames;
@@ -93,7 +146,9 @@ class ScratchProcessor extends AudioWorkletProcessor {
         this.prevRate = seed;
         this.nominal = seed;
         this.lastFrame = this.frames;
-        this.have = false;    // the next target only sets the anchor, not a rate
+        this.have = false;
+        this.pendingSnap = true;
+        this.snapUntilFrame = this.frames + this.SNAP_WINDOW;
       } else if (m.type === "gain") {
         this.gain = m.value;
       }
@@ -128,6 +183,14 @@ class ScratchProcessor extends AudioWorkletProcessor {
       this.frames += n;
       return true;
     }
+
+    // pendingSnap's own expiry (frames vs snapUntilFrame, set on reset) is
+    // checked in the target handler above — nothing to do here. A render
+    // tick needs no say in when snapping stops: unlike this.left (already
+    // true the instant a reset lands, because deck-audio.js always posts
+    // "buffer" before "reset"), whether process() has run yet carries no
+    // information about whether the head has actually been anchored to a
+    // real target.
 
     // Feedforward plus a slow correction. The nominal rate carries the pitch,
     // so a direction change lands within one frame; the chase only closes the

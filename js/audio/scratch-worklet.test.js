@@ -238,6 +238,50 @@ test("an irregular animation-frame clock does not corrupt a constant rate", () =
   assert.ok(worst < 0.02, `feedforward rate stays at 1x through irregular timing (worst deviation ${worst.toFixed(4)})`);
 });
 
+test("a needle drop does not glide up in pitch while a real gap opens before the first target", () => {
+  // Reproduces the measured defect (startup-glide report): the page posts
+  // `reset` at pos 0, then the record keeps turning for a frame or two
+  // before the first `target` message actually arrives, so that first pos
+  // lands ~1500 samples ahead of cur purely from message timing — the head
+  // was never behind. Chasing that gap the ordinary way used to glide the
+  // rate up toward 1.04x and take a full second to settle back to 1x,
+  // audible as every track starting sharp. There is nothing to converge
+  // toward here, so this asserts on NO catch-up excursion at all: the very
+  // first block already sits within 0.02 of the commanded rate.
+  const p = makeProcessor();
+  p.port.send({ type: "buffer", left: signal(LEN), right: signal(LEN, 1.7) });
+  p.port.send({ type: "reset", pos: 0, rate: 1 });
+  p.port.send({ type: "target", pos: 1500, rate: 1 });
+  const chans = [new Float32Array(BLOCK), new Float32Array(BLOCK)];
+  p.process([], [chans]);
+  assert.ok(Math.abs(p.prevRate - 1) < 0.02, `no catch-up excursion (rate ${p.prevRate.toFixed(4)})`);
+});
+
+test("several targets landing before the worklet renders its first block do not glide either", () => {
+  // The single-message version above already passed once the FIRST post-
+  // reset target snapped cur to it — but the measured real-browser sequence
+  // is not one message, it's several: the AudioContext/worklet startup gap
+  // is ~34ms, and the page posts a target every animation frame (~8ms)
+  // throughout it, all before process() has been called even once. Only
+  // snapping the first of those targets lets `target` walk ahead of `cur`
+  // again on every message after it — recreating the same lag the first
+  // snap was meant to close, just shifted later. This reproduces that: five
+  // targets, one every ~8ms of simulated frame time, arrive before the
+  // first rendered block. The very first rendered block must still land
+  // within 0.02 of the commanded rate, with no catch-up excursion.
+  const p = makeProcessor();
+  p.port.send({ type: "buffer", left: signal(LEN), right: signal(LEN, 1.7) });
+  p.port.send({ type: "reset", pos: 0, rate: 1 });
+  p.port.send({ type: "target", pos: 350, rate: 1 });
+  p.port.send({ type: "target", pos: 700, rate: 1 });
+  p.port.send({ type: "target", pos: 1050, rate: 1 });
+  p.port.send({ type: "target", pos: 1400, rate: 1 });
+  p.port.send({ type: "target", pos: 1518, rate: 1 });
+  const chans = [new Float32Array(BLOCK), new Float32Array(BLOCK)];
+  p.process([], [chans]);
+  assert.ok(Math.abs(p.prevRate - 1) < 0.02, `no catch-up excursion (rate ${p.prevRate.toFixed(4)})`);
+});
+
 test("a direction reversal lands within one animation frame", () => {
   const d = driver(30000);
   d.run(1, 120);
