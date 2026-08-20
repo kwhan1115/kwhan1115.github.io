@@ -420,7 +420,45 @@ function halt() {
   raf = 0;
 }
 
-document.addEventListener("visibilitychange", () => (document.hidden ? halt() : kick()));
+// Set the instant the tab goes background; consumed and cleared on the way
+// back. A record has an implicit contract with this file: the record's
+// rotation IS the audio clock. halt() below stops the rAF loop that runs
+// deck.step(), so deck.state.turns freezes for as long as the tab is
+// hidden — but the worklet's own clock does not freeze with it. With no
+// incoming targets it keeps extrapolating forward from its last known rate,
+// which is exactly right (a record player plays on while you're on another
+// tab). Left alone, the first target posted after kick() resumes would
+// report a position however-many-seconds-of-turns behind where the audio
+// actually is, and the chase term would read that gap as "the head needs to
+// run backward to close it" — which is the reversed-playback bug this
+// exists to prevent.
+let hiddenAt = null;
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    hiddenAt = performance.now();
+    halt();
+    return;
+  }
+  if (hiddenAt !== null) {
+    // Catch the record up to where it would be if it had genuinely kept
+    // spinning, BEFORE kick() lets the loop post a target again — turns has
+    // to already agree with the audio's position by the time the next
+    // target message goes out, not a frame later.
+    deck.catchUp((performance.now() - hiddenAt) / 1000);
+    // audio.setTurns hasn't run since before the tab hid, so its own rate
+    // tracking still remembers a position from several seconds ago. Its next
+    // call would divide today's turns catch-up (deliberately uncapped) by a
+    // divisor nextTarget still clamps to MAX_DT — the same mismatch stepSpin
+    // exists to prevent on the position side, showing up on the rate side
+    // instead. Drop it, exactly as a fresh load() does, so the next call
+    // plants a new baseline from a normal frame-to-frame delta instead.
+    audio.resetRateTracking();
+    hiddenAt = null;
+  }
+  kick();
+}
+document.addEventListener("visibilitychange", onVisibilityChange);
 if (reduced) {
   record.addEventListener("pointerdown", kick);
   record.addEventListener("keydown", kick);

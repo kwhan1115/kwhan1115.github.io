@@ -113,3 +113,30 @@ export function stepSpin(state, dt, { paused = false } = {}) {
   state.turns += travel / 360;
   return state;
 }
+
+/**
+ * Advance turns/angle for time the animation loop did not run AT ALL,
+ * because the page was hidden. This is deliberately not a call to stepSpin:
+ * MAX_DT exists to stop one oversized ANIMATION FRAME from teleporting the
+ * record mid-gesture, on the assumption that a huge `dt` is a scheduling
+ * hiccup and the truth is closer to a normal frame. Neither assumption holds
+ * here — there was no frame at all, slow or otherwise, and the elapsed time
+ * IS the truth: the worklet's own clock kept running for every millisecond
+ * of it (a record player plays on while you're on another tab), so turns has
+ * to cover the same ground or the two clocks disagree by exactly the gap
+ * MAX_DT would have introduced.
+ *
+ * Velocity is held constant across the gap — whatever it was the instant the
+ * page went hidden — rather than integrated through the settle/brake curve a
+ * running loop would have applied. Nobody was there to see that curve play
+ * out either way; a constant is the simplest choice that keeps the record's
+ * rotation and the audio position in agreement, which is the only property
+ * this function exists to protect.
+ */
+export function catchUpHidden(state, elapsedSeconds) {
+  if (state.grabbed || !(elapsedSeconds > 0)) return state;
+  const travel = state.vel * elapsedSeconds;
+  state.angle = wrapAngle(state.angle + travel);
+  state.turns += travel / 360;
+  return state;
+}

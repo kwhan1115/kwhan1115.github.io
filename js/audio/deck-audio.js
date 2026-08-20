@@ -5,7 +5,7 @@
 // This file is the part that can only run in a browser, so it is kept thin on
 // purpose.
 
-import { samplesFromTurns, clampRate, rateFromVel } from "./groove.js";
+import { samplesFromTurns, clampRate, rateFromVel, shouldReanchor, turnsFromSamples } from "./groove.js";
 import { WORKLET_SOURCE, PROCESSOR_NAME } from "./scratch-worklet.js";
 import { MAX_DT } from "../spin.js";
 
@@ -199,7 +199,30 @@ export function createDeckAudio({ onState, getVel } = {}) {
     lastTurns = turns;
     if (!node || origin === null) return;
 
-    const pos = samplesFromTurns(turns - origin, ctx.sampleRate);
+    let pos = samplesFromTurns(turns - origin, ctx.sampleRate);
+
+    // Robustness net for main.js's own visibilitychange fix: that fix
+    // catches turns up using an elapsed-time timestamp, but not every
+    // browser or embedding is guaranteed to fire visibilitychange at all, or
+    // to fire it promptly. If the record's computed position and the
+    // worklet's actual head (telemetry.cur, which the worklet keeps
+    // reporting regardless of what this page's main thread is doing) have
+    // diverged by more than shouldReanchor's threshold, that is not residual
+    // error for the chase term to trim — it is the two clocks having
+    // genuinely disagreed for however long, and re-anchor exactly as load()
+    // does at needle-drop: move the origin so the target this module computes
+    // next lands where the head already is, rather than asking the chase
+    // term to drag the head backward through the gap.
+    if (telemetry && shouldReanchor(pos, telemetry.cur, ctx.sampleRate)) {
+      origin = turns - turnsFromSamples(telemetry.cur, ctx.sampleRate);
+      pos = telemetry.cur;
+      // A rate computed across the jump this just made would describe the
+      // re-anchor, not the record — drop it exactly as load() does, so the
+      // next sample plants a fresh baseline instead of reporting a spurious
+      // one-off rate derived from a position that didn't move by turning.
+      rateState = { ratePos: null, rateAtMs: null };
+    }
+
     // `nowMs` should be the SAME timestamp the caller used to advance
     // `turns` in the first place — see nextTarget()'s own comment for why
     // that matters more than it looks like it should.
@@ -244,5 +267,24 @@ export function createDeckAudio({ onState, getVel } = {}) {
     return telemetry;
   }
 
-  return { load, setTurns, setMuted, stop, isSupported, getTelemetry };
+  // Called by main.js right before it catches deck.state.turns up across a
+  // hidden gap. nextTarget's own dtMs clamp (see its comment) assumes the
+  // POSITION delta it is dividing is also capped, which is true for a single
+  // oversized animation frame — stepSpin caps that case itself — but false
+  // here on purpose: the whole point of catching turns up is an UNCAPPED,
+  // multi-second position jump. Left alone, that jump gets divided by
+  // nextTarget's ~100ms-clamped divisor and comes out looking like a rate of
+  // several tens, which the worklet's EMA then takes many frames to age back
+  // out — an entirely self-inflicted second glitch on top of the one this
+  // whole feature exists to fix (measured once, in a real browser, before
+  // this call was added: a single corrupted rate sample drove the reported
+  // rate to 1.37, then oscillating in the 0.90s, for several hundred ms).
+  // Dropping the baseline is exactly what load() and stop() already do
+  // whenever a position jump isn't attributable to ordinary rotation — the
+  // very next setTurns call plants a fresh one from a normal, small dt.
+  function resetRateTracking() {
+    rateState = { ratePos: null, rateAtMs: null };
+  }
+
+  return { load, setTurns, setMuted, stop, isSupported, getTelemetry, resetRateTracking };
 }

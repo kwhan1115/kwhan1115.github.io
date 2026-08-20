@@ -4,7 +4,7 @@
 // Physics lives in spin.js (pure, tested). This module owns the state and the
 // DOM, and reports back whenever the visible label or speed changes.
 
-import { IDLE_VEL, wrapAngle, shortestDelta, velocityFromSamples, speedLabel, stepSpin } from "./spin.js";
+import { IDLE_VEL, wrapAngle, shortestDelta, velocityFromSamples, speedLabel, stepSpin, catchUpHidden } from "./spin.js";
 
 // A throw faster than this is almost certainly a flick of the wrist against a
 // trackpad rather than an intention, and it makes the label unreadable.
@@ -207,6 +207,18 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
     report();
   }
 
+  // Called once, by main.js's visibilitychange handler, on the way back from
+  // a hidden tab — see catchUpHidden's own comment for why this bypasses
+  // step()/stepSpin rather than just handing it a huge dt. paint() runs
+  // immediately rather than waiting for the next frame, so the disc doesn't
+  // sit at its pre-hidden angle for even one frame once the tab is back.
+  // report() is not needed: speedLabel depends on vel and paused, neither of
+  // which this touches.
+  function catchUp(elapsedSeconds) {
+    catchUpHidden(state, elapsedSeconds);
+    paint();
+  }
+
   /** True while anything is still moving — lets main.js idle the loop. */
   const isBusy = () => state.grabbed || Math.abs(state.vel) > 0.5;
 
@@ -220,5 +232,5 @@ export function createDeck(root, { onChange, reduced = false } = {}) {
 
   paint();
   report();
-  return { step, cue, isBusy, setPaused, state };
+  return { step, cue, isBusy, setPaused, state, catchUp };
 }

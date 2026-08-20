@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   IDLE_RPM, IDLE_VEL, rpmToDeg, degToRpm,
-  wrapAngle, shortestDelta, velocityFromSamples, rpmLabel, speedLabel, stepSpin,
+  wrapAngle, shortestDelta, velocityFromSamples, rpmLabel, speedLabel, stepSpin, catchUpHidden,
 } from "./spin.js";
 
 test("rpm and degrees-per-second convert both ways", () => {
@@ -224,4 +224,58 @@ test("turns advance is frame-rate independent at a steady speed", () => {
   stepSpin(coarse, 0.1);
   for (let i = 0; i < 10; i++) stepSpin(fine, 0.01);
   assert.ok(Math.abs(coarse.turns - fine.turns) < 1e-9);
+});
+
+// catchUpHidden — the tab-hidden reproduction from the bug report was three
+// seconds hidden at idle spin, with the worklet's head advancing ~1x the
+// whole time while turns sat frozen. These tests are the reproduction run
+// through the fix instead: turns has to cover the SAME ground stepSpin would
+// have covered had the loop never stopped, uncapped by MAX_DT, which is
+// exactly what a real running loop guarantees and what a frozen one breaks.
+
+test("catchUpHidden advances turns by velocity times the full elapsed gap, uncapped by MAX_DT", () => {
+  const s = { angle: 0, vel: IDLE_VEL, grabbed: false, turns: 0 };
+  // Three seconds, matching the measured repro. MAX_DT is 0.1s -- if this
+  // silently routed through stepSpin's cap it would advance at most 0.1s
+  // worth of turns, not 3s worth.
+  catchUpHidden(s, 3);
+  assert.ok(Math.abs(s.turns - (IDLE_VEL * 3) / 360) < 1e-9, `turns ${s.turns}`);
+});
+
+test("catchUpHidden keeps angle wrapped and in agreement with turns, same as stepSpin", () => {
+  const s = { angle: 350, vel: IDLE_VEL, grabbed: false, turns: 0 };
+  catchUpHidden(s, 3);
+  assert.ok(s.angle >= 0 && s.angle < 360, `angle must stay wrapped, got ${s.angle}`);
+  // turns carries the same travel as angle, just unwrapped -- the seam the
+  // 350-degree starting point sits right against must not desync them.
+  const travel = (IDLE_VEL * 3) % 360;
+  assert.ok(Math.abs(s.angle - wrapAngle(350 + travel)) < 1e-6, `angle ${s.angle}`);
+});
+
+test("catchUpHidden does nothing while paused (vel 0) -- nothing was moving, nothing to correct", () => {
+  const s = { angle: 40, vel: 0, grabbed: false, turns: 1.5 };
+  catchUpHidden(s, 15);
+  assert.equal(s.angle, 40);
+  assert.equal(s.turns, 1.5);
+});
+
+test("catchUpHidden counts turns backwards for a record that was scratching when the tab went hidden", () => {
+  const s = { angle: 0, vel: -IDLE_VEL, grabbed: false, turns: 0 };
+  catchUpHidden(s, 3);
+  assert.ok(s.turns < 0, `expected negative turns, got ${s.turns}`);
+});
+
+test("catchUpHidden leaves a grabbed record alone -- the pointer, not the clock, owns it", () => {
+  const s = { angle: 120, vel: 999, grabbed: true, turns: 4.25 };
+  catchUpHidden(s, 3);
+  assert.equal(s.angle, 120);
+  assert.equal(s.turns, 4.25);
+});
+
+test("catchUpHidden ignores a zero or negative gap", () => {
+  const s = { angle: 10, vel: IDLE_VEL, grabbed: false, turns: 2 };
+  catchUpHidden(s, 0);
+  catchUpHidden(s, -1);
+  assert.equal(s.angle, 10);
+  assert.equal(s.turns, 2);
 });

@@ -40,3 +40,36 @@ export function clampRate(rate) {
 export function rateFromVel(vel) {
   return (vel / 360) * SECONDS_PER_TURN;
 }
+
+/** The inverse of samplesFromTurns — a sample position back to a turns count. */
+export function turnsFromSamples(samples, sampleRate) {
+  return samples / (SECONDS_PER_TURN * sampleRate);
+}
+
+// A safety net for when the record's rotation and the worklet's actual head
+// position have genuinely diverged — a tab-hidden freeze whose
+// visibilitychange event never fired, or one the embedding throttled into
+// uselessness, rather than the ordinary small drift the chase term exists to
+// trim. One second of audio is the threshold: it sits far above both things
+// that produce ordinary residual gaps — the worklet's telemetry is at most
+// ~2400 samples (~54ms at 44.1kHz) stale, and chase=50000 keeps in-flight
+// chase residual on the order of a thousand samples even during an active
+// scratch (see scratch-worklet.js's own chase comment: it predicts ~0.016 of
+// rate spread, which is ~0.016 * 50000 ≈ 800 samples of gap) — so neither ever
+// trips this. It sits far BELOW what even a brief hidden tab produces: the
+// record advances audio at roughly its own sample rate per second of real
+// time (idle spin plays at 1x), so a freeze of even a couple of seconds
+// clears this threshold several times over.
+export const REANCHOR_GAP_SECONDS = 1;
+
+/**
+ * Should the engine re-anchor the origin instead of letting the chase term
+ * close this gap? A chase is for trimming small residual error accumulated
+ * a little at a time; a multi-second gap is not that, and chasing it means
+ * dragging the head backward through however much audio the frozen clock
+ * owes — audible as playback running in reverse.
+ */
+export function shouldReanchor(target, cur, sampleRate, thresholdSeconds = REANCHOR_GAP_SECONDS) {
+  if (!Number.isFinite(target) || !Number.isFinite(cur)) return false;
+  return Math.abs(target - cur) > thresholdSeconds * sampleRate;
+}
