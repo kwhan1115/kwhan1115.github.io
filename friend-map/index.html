@@ -1,0 +1,2045 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="A hand-built map of one person's friendships, laid out by a force simulation with no libraries.">
+<title>Friend Map &mdash; Kyuwon Han</title>
+<style>
+:root{
+  --bg:#0d1013; --panel:#14181d; --panel2:#1a1f26; --line:#242b34;
+  --ink:#e6e9ee; --ink2:#9aa5b4; --ink3:#5f6b7a;
+  --inner:#ff6b5e; --solid:#f0b537; --orbit:#5aa9e6; --none:#4b5663;
+  /* belt: the outermost ring. Cooler and dimmer than orbit so it reads as
+     further out, but clearly brighter than --none, which now means only
+     "no ring on record" rather than "the ones he hasn't got to". */
+  --belt:#6b7a8f;
+  --fam:#9b7ede; --self:#e6e9ee;
+  --e-circle:#2b3642; --e-hl:#4b7fa8; --e-intro:#7a6bbf; --e-partner:#c45a84;
+  --e-manual:#55606e; --e-kyuwon:#222a33; --e-nominal:#6b5a33; --e-stub:#6b5a33;
+  --warn:#ff8a5e;
+  --r:10px; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+html,body{height:100%}
+body{display:flex;flex-direction:column;overflow:hidden}
+a{color:var(--orbit)}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+
+.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+.topbar h1{font-size:15px}
+.sens{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink2);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.meta{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right;line-height:1.5}
+.subbar{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;
+  padding:9px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+.subbar p{margin:0;max-width:68ch;color:var(--ink2);line-height:1.45}
+.key{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-left:auto;
+  font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2)}
+.key span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+/* The topbar already wraps, but .meta keeps margin-left:auto and text-align:right
+   when it does, so at phone width the line ran off the edge and the
+   generated-at stamp -- the guard that makes a stale people.data.js visible
+   rather than silent -- was the half that got clipped. Reflow it instead of
+   hiding it. */
+@media (max-width:860px){
+  .meta{margin-left:0;width:100%;text-align:left;font-size:10px;line-height:1.45}
+}
+
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel2)}
+.toggle button{appearance:none;border:0;background:transparent;color:var(--ink2);
+  font:inherit;font-size:12px;font-weight:650;letter-spacing:.08em;padding:7px 16px;cursor:pointer}
+.toggle button[aria-pressed=true]{background:var(--ink);color:#0d1013}
+.toggle button:focus-visible{outline:2px solid var(--orbit);outline-offset:-2px}
+
+.wrap{position:relative;flex:1 1 auto;min-height:0}
+/* absolute, not grid+height:100%: a grid row sizes to CONTENT, so height:100%
+   on the svg had nothing definite to resolve against and fell back to the
+   viewBox aspect -- 1394px tall in an 897px window, and the page scrolled. */
+
+.stage{position:absolute;inset:0;min-width:0}
+/* the whole map must fit the first screen -- he opens this to find one person,
+   not to scroll a graph. Letterboxes rather than cropping.
+   HEIGHT IS DERIVED, NOT RESERVED: this was max-height:calc(100vh - 150px),
+   where 150 was room for the legend and footer. Those came off on 2026-10-26
+   and the constant went stale the same minute, leaving ~150px of dead space
+   under the map. Body is a flex column, the map fills what the topbar leaves,
+   and nothing has to be re-tuned the next time a strip is added or removed. */
+svg.map{display:block;width:100%;height:100%;touch-action:manipulation}
+/* ---- the circles panel -------------------------------------------------
+   Cluster names left the canvas on 2026-10-30: at 11px, tracked, over a live
+   force layout they were competing with the thing they described. Off the map
+   a name can carry its roster as well, which the canvas never had room for. */
+/* Positioned, not grid. The note on .stage is load-bearing: a grid row sizes
+   to CONTENT, so height:100% on the svg resolved against nothing and fell back
+   to the viewBox aspect -- 1394px tall in an 897px window. Insetting the stage
+   from the left keeps the definite height that fix depends on. */
+.wrap--panel .panel{position:absolute;left:0;top:0;bottom:0;width:264px}
+.wrap--panel .stage{left:264px}
+@media (max-width:860px){
+  .wrap--panel .panel{left:0;right:0;top:0;bottom:auto;width:auto;height:38%;
+    border-right:0;border-bottom:1px solid var(--line)}
+  .wrap--panel .stage{left:0;top:38%}
+}
+.panel{
+  overflow:auto; padding:18px 0 28px; border-right:1px solid var(--line);
+  /* The scrollbar is part of the page. Left alone it ships the OS default,
+     which belongs to no design here. */
+  scrollbar-width:thin; scrollbar-color:#2a3038 transparent;
+}
+.panel::-webkit-scrollbar{width:9px}
+.panel::-webkit-scrollbar-track{background:transparent}
+.panel::-webkit-scrollbar-thumb{background:#2a3038;border-radius:999px}
+.panel::-webkit-scrollbar-thumb:hover{background:#39414c}
+/* Generous between groups, tight within one -- the grouping has to be legible
+   before any single name is. */
+.cgroup + .cgroup{margin-top:22px}
+.chead{
+  display:flex; align-items:baseline; gap:7px; width:100%;
+  background:none; border:0; cursor:pointer; text-align:left;
+  font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink3);
+  padding:5px 16px 7px; transition:color .12s ease;
+}
+.chead:hover,.chead.on{color:var(--ink)}
+.chead .n{font-weight:400;opacity:.5;letter-spacing:.04em}
+.cmem{
+  display:flex; align-items:center; gap:9px; width:100%;
+  background:none; border:0; cursor:pointer; text-align:left;
+  font:inherit; font-size:12.5px; color:var(--ink2);
+  padding:3px 16px; transition:color .12s ease,background .12s ease;
+}
+.cmem:hover{color:var(--ink);background:#1b2026}
+.cmem.sel{color:var(--ink);background:#232a33}
+/* Ring colour is a reminder, never the only carrier -- the dot has a title and
+   every row is reachable and readable without it. */
+.dot{width:7px;height:7px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px #0003}
+.cmem.sel .dot{box-shadow:inset 0 0 0 1px #0003,0 0 0 2px #ffffff26}
+.cnone{padding:16px 16px 0;margin-top:22px;border-top:1px solid var(--line);
+  color:var(--ink3);font-size:11.5px;line-height:1.55}
+.chead:focus-visible,.cmem:focus-visible{outline:2px solid var(--orbit);outline-offset:-2px}
+.clabel{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;fill:var(--ink3);text-anchor:middle;pointer-events:none}
+.clabel tspan.n{fill:var(--ink3);opacity:.6}
+.nlabel{font-size:10.5px;fill:var(--ink2);text-anchor:middle;pointer-events:none}
+.node{cursor:grab;touch-action:none}
+.node:focus{outline:none}
+.node:focus-visible .shape{stroke:#fff;stroke-width:3}
+.node .shape{transition:stroke-width .12s,opacity .12s}
+/* THE GRAB AREA IS NOT THE DRAWN AREA. A ringless person is drawn hollow
+   (fill:none), and fill:none is not a hit target -- only the 1.4px stroke is.
+   Measured 2026-10-27: 43 of 43 hollow nodes failed a hit test AT THEIR OWN
+   CENTRE while 0 of 37 filled ones did, so over half the map could only be
+   clicked or dragged on a hairline. `.hit` is an invisible disc that restores
+   the target without touching the drawing. fill:transparent, never fill:none
+   -- `none` is exactly the bug. */
+.hit{fill:transparent;stroke:none}
+/* ...AND THE SAME DEFECT HAD KILLED THE CIRCLE HANDLE OUTRIGHT. A cluster
+   label carries pointer-events:none so its glyphs never steal a node's click,
+   and the "drag a circle" pointerdown was attached to that very element -- a
+   listener on something that cannot receive the event. It had never fired.
+   The handle is now a group: an invisible rect takes the pointer, the text
+   stays inert, and the rect IS the label's collision box, so the handle can
+   never come to rest on top of a person. */
+.chandle{cursor:grab;touch-action:none}
+.chandle:focus{outline:none}
+.chit{fill:transparent;stroke:none}
+.chandle:focus-visible .clabel{fill:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.map.dragging,.map.dragging .node,.map.dragging .chandle{cursor:grabbing}
+.map.dragging .nlabel{opacity:.55}
+.node.sel .shape{stroke:#fff;stroke-width:3}
+.node.dim{opacity:.22}
+.edge{fill:none}
+.edge.dim{opacity:.1}
+.edge.hot{opacity:1}
+
+.rail{border-left:1px solid var(--line);background:var(--panel);min-height:100%}
+@media(max-width:1000px){.rail{border-left:0;border-top:1px solid var(--line)}}
+.rail h2{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink2);
+  padding:13px 16px 9px;border-bottom:1px solid var(--line)}
+.ri{display:block;width:100%;text-align:left;appearance:none;background:transparent;border:0;
+  border-bottom:1px solid var(--line);padding:11px 16px;cursor:pointer;color:inherit;font:inherit}
+.ri:hover,.ri:focus-visible{background:var(--panel2);outline:none}
+.ri .r1{display:flex;align-items:baseline;gap:8px}
+.ri .nm{font-weight:650}
+.ri .when{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap}
+.ri .r2{font-size:12px;color:var(--ink2);margin-top:3px;line-height:1.45}
+.badge{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.b-thread{background:#4a1c14;color:#ffbfae;border:1px solid #7a2e22}
+.b-bday{background:#1c3a4a;color:#bfe3ff;border:1px solid #2d5e78}
+.b-cad{background:#3f3419;color:#ffe6ae;border:1px solid #6b5a33}
+.b-today{background:#ff6b5e;color:#2a0d08;border:1px solid #ff6b5e}
+.ring{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.ring.inner{color:var(--inner)}.ring.solid{color:var(--solid)}
+.ring.orbit{color:var(--orbit)}.ring.none{color:var(--none)}
+.ring.belt{color:var(--belt)}
+.ring.family{color:var(--fam)}
+
+.cant{padding:11px 16px;font-size:11.5px;color:var(--ink3);line-height:1.6;border-bottom:1px solid var(--line)}
+.cant b{color:var(--ink2);font-weight:650}
+
+.card{border-top:1px solid var(--line);background:var(--panel);padding:0}
+.card .hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:15px 18px 11px}
+.card .hd h2{font-size:19px}
+.card .hd .x{margin-left:auto;appearance:none;background:transparent;border:1px solid var(--line);
+  color:var(--ink2);border-radius:6px;font:inherit;font-size:12px;padding:4px 10px;cursor:pointer}
+.sect{padding:0 18px 14px;max-width:1120px}
+.card .hd{max-width:1120px}
+.sect h3{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);
+  margin:14px 0 8px;padding-top:12px;border-top:1px solid var(--line)}
+.kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:5px 14px;align-items:baseline}
+@media(max-width:620px){.kv{grid-template-columns:1fr}}
+.kv dt{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.02em}
+.kv dd{margin:0;line-height:1.55;overflow-wrap:anywhere}
+.kv dd.prose{color:var(--ink2);font-size:13px}
+.pill{display:inline-block;font-size:11.5px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:999px;padding:2px 9px;margin:0 5px 5px 0}
+.pill.nom{border-style:dashed;color:var(--ink3)}
+.thread{background:#1b1310;border:1px solid #4a2a1e;border-radius:var(--r);padding:12px 14px;line-height:1.55}
+.thread .t1{font-size:11px;font-family:var(--mono);color:var(--warn);letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:6px}
+.prov{font-size:11px;color:var(--ink3);font-style:italic;margin-top:4px}
+.empty{padding:28px 18px;color:var(--ink3);font-size:13px;line-height:1.6}
+
+.foot{border-top:1px solid var(--line);background:var(--panel);padding:14px 18px 22px}
+details{margin-top:8px}
+details summary{cursor:pointer;font-size:12px;color:var(--ink2);font-weight:650}
+details summary:focus-visible{outline:2px solid var(--orbit);outline-offset:2px}
+.integ{margin-top:10px;font-size:12px;line-height:1.7;color:var(--ink2)}
+.integ ul{margin:6px 0 12px;padding-left:20px}
+.integ code{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.integ .ok{color:#6fd08c}.integ .bad{color:var(--warn);font-weight:650}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:11.5px;color:var(--ink2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:22px;height:0;border-top-width:2px;border-top-style:solid;display:inline-block}
+.sw{width:11px;height:11px;border-radius:50%;display:inline-block}
+.sw.sq{border-radius:3px}
+@media (max-width:860px){
+  .wrap--panel .panel{top:auto;bottom:0;height:40%;
+    border-right:0;border-top:1px solid var(--line);border-bottom:0}
+  .wrap--panel .stage{left:0;top:0;bottom:40%}
+  .subbar{padding:8px 16px;gap:9px}
+  .subbar p{font-size:13px;line-height:1.42}
+  .key{margin-left:0;gap:11px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Friend Map</h1>
+  <span class="sens">Public view &middot; names and circles only</span>
+  <div class="toggle" role="group" aria-label="Map layout">
+    <button id="bC" aria-pressed="true">Circles</button>
+    <button id="bT" aria-pressed="false">Cities</button>
+  </div>
+  <div class="meta" id="meta"></div>
+</div>
+
+<div class="subbar">
+  <p>82 people, grouped two ways: by the circle they belong to, and by the city they live in. The same dots move between both. Ring colour is how close, which is a judgement, not a message count.</p>
+  <div class="key" aria-label="Ring key">
+    <span><i class="sw" style="background:var(--inner)"></i>inner</span>
+    <span><i class="sw" style="background:var(--solid)"></i>solid</span>
+    <span><i class="sw" style="background:var(--orbit)"></i>orbit</span>
+    <span><i class="sw" style="background:var(--belt)"></i>belt</span>
+    <span><i class="sw" style="background:var(--fam)"></i>family</span>
+  </div>
+</div>
+
+<!-- JUST THE MAP, his call 2026-10-26. The check-in rail, the person card, the
+     legend and the data-integrity disclosure are all GONE FROM THE PAGE and
+     their code is INTACT BEHIND `CHROME` below -- one flag brings any of them
+     back, because this is a display choice and not a decision to throw the
+     scoring away. -->
+<div class="wrap wrap--panel">
+  <aside class="panel" id="panel" aria-label="Circles"></aside>
+  <div class="stage">
+    <svg class="map" id="svg" viewBox="0 0 1240 900" role="group" aria-label="Friend map"></svg>
+  </div>
+</div>
+
+<!-- REDACTED BUILD. Generated by build_public.py from people.json v84; do not hand-edit. -->
+<script>window.FM_DATA={"_schema":{"version":84,"circles":{"womp":"","Austin food / hangout group":"","Boys of Bell":"","Iroh Fam":"","The Usual Suspects":"","Tennis circle":"","Racket sports crew":"","Axolotle Fam":"","High school Percussionists":""},"edge_exclusions":[{"pair":["Kyuchan","Joshua Vela"],"why":""}]},"people":[{"name":"Kyuwon Han","circle":[],"closeness":null,"introduced_by":null,"metro":"Austin","relation":"self","introduced_by_status":"not_asked","circle_nominal":[],"highlights":[{"with":["Joshua Vela","Kyuchan"]}]},{"name":"Rachel Jeong","circle":["womp"],"closeness":"inner","introduced_by":"seojin yoon","metro":"DFW","relation":"friend","introduced_by_status":"named","circle_nominal":[],"manual_edge":["Amy Kim"],"highlights":[{"with":["Bryan Yee","seojin yoon"]},{"with":["Bryan Yee","seojin yoon"]}]},{"name":"seojin yoon","circle":["womp"],"closeness":"inner","introduced_by":"Bryan Yee","metro":"DFW","relation":"friend","introduced_by_status":"named","circle_nominal":[],"highlights":[{"with":["Rachel Jeong","Bryan Yee"]},{"with":["Bryan Yee","Rachel Jeong"]}]},{"name":"Bryan Yee","circle":["womp"],"metro":"Austin","closeness":"inner","introduced_by":null,"relation":"friend","introduced_by_status":"none_met_directly","circle_nominal":[],"manual_edge":["Kyle Villanueva"],"highlights":[{"with":["Nicholas Chan","Lily Chieng"]},{"with":["Rachel Jeong","seojin yoon"]},{"with":["seojin yoon","Rachel Jeong"]}]},{"name":"문서현 (Seohyun)","circle":[],"metro":"Philadelphia","closeness":"orbit","introduced_by":null,"relation":"friend","introduced_by_status":"none_met_directly","circle_nominal":[]},{"name":"Angie Pham","circle":[],"closeness":"inner","introduced_by":null,"metro":"DFW","relation":"friend","introduced_by_status":"not_asked","circle_nominal":["Iroh Fam"]},{"name":"Alissa Nguyen","circle":["Austin food / hangout group"],"metro":"DFW","closeness":"inner","introduced_by":null,"relation":"friend","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Fornia Van","circle":[],"metro":"Houston","closeness":"inner","introduced_by":null,"relation":"friend","introduced_by_status":"not_asked","circle_nominal":[],"manual_edge":["Amy Kim"]},{"name":"Minjun","circle":["Boys of Bell","Iroh Fam","High school Percussionists"],"metro":"DFW","closeness":"solid","introduced_by":null,"relation":"friend","introduced_by_status":"not_asked","circle_nominal":[],"manual_edge":["Kyle Villanueva","Ania Glowacki","Arabella Diedrich"]},{"name":"Mollik Shafin Rahman","circle":["Boys of Bell","Iroh Fam"],"metro":"DFW","closeness":"solid","introduced_by":null,"relation":"friend","introduced_by_status":"not_asked","circle_nominal":[],"manual_edge":["Youssef"]},{"name":"Shoham Sanyal","circle":["Boys of Bell","Iroh Fam","High school Percussionists"],"metro":"DFW","closeness":"solid","introduced_by":null,"relation":"friend","introduced_by_status":"not_asked","circle_nominal":[],"manual_edge":["Kyle Villanueva","Ania Glowacki","Arabella Diedrich"]},{"name":"Joshua Vela","circle":["High school Percussionists"],"metro":"Lubbock","closeness":"solid","introduced_by":null,"relation":"friend","introduced_by_status":"not_asked","circle_nominal":[],"manual_edge":["Kyle Villanueva"],"highlights":[{"with":["Kyuchan"]}]},{"name":"Nam Thai","circle":["Boys of Bell","Iroh Fam"],"metro":"DFW","closeness":"solid","introduced_by":null,"relation":"friend","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Kyuchan","circle":[],"closeness":"family","introduced_by":null,"metro":"Austin","relation":"family","introduced_by_status":"not_asked","circle_nominal":[],"highlights":[{"with":["Joshua Vela"]}]},{"name":"Kyumin","circle":[],"closeness":"family","introduced_by":null,"metro":"Austin","relation":"family","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Kyujin","circle":[],"closeness":"family","introduced_by":null,"metro":"Providence","relation":"family","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Emily","circle":[],"closeness":"belt","introduced_by":null,"metro":"Austin","relation":"friend","introduced_by_status":"not_asked","circle_nominal":[],"manual_edge":["Kyumin"]},{"name":"Jamie Lee","circle":["Austin food / hangout group"],"closeness":"inner","introduced_by":null,"metro":"Austin","relation":"friend","introduced_by_status":"none_met_directly","circle_nominal":[]},{"name":"Lily Chieng","circle":["Austin food / hangout group"],"closeness":"inner","introduced_by":null,"metro":"Austin","relation":"friend","introduced_by_status":"exists_unnamed_withheld","circle_nominal":[],"highlights":[{"with":["Bryan Yee","Nicholas Chan"]}],"manual_edge":["Nicholas Chan"]},{"name":"Alan Nguyen","circle":["Iroh Fam","The Usual Suspects"],"closeness":"solid","introduced_by":null,"metro":"DFW","relation":"friend","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Jade Phan","circle":["Iroh Fam","The Usual Suspects"],"closeness":"solid","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["Crystal Nguyen"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Crystal Nguyen","circle":[],"closeness":"orbit","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["Jade Phan"],"introduced_by_status":"none_met_directly","circle_nominal":[]},{"name":"Bowen James","circle":["Iroh Fam"],"closeness":"orbit","introduced_by":null,"metro":"DFW","relation":"friend","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Brendan Nguyen","circle":["Iroh Fam"],"closeness":"orbit","introduced_by":null,"metro":"DFW","relation":"friend","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Andy Nguyen","circle":["Iroh Fam"],"closeness":"orbit","introduced_by":null,"metro":"DFW","relation":"friend","introduced_by_status":"not_asked","circle_nominal":[]},{"name":"William Le","circle":["Austin food / hangout group","Tennis circle"],"closeness":"inner","introduced_by":"Ethan Jantaworn","metro":"Austin","relation":"friend","manual_edge":["Peter Hwang","Yujin Kim"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Nicholas Chan","circle":["Austin food / hangout group"],"closeness":"inner","introduced_by":"Lily Chieng","metro":"Austin","relation":"friend","manual_edge":["Lily Chieng"],"introduced_by_status":"named","circle_nominal":[],"highlights":[{"with":["Bryan Yee","Lily Chieng"]}]},{"name":"Ethan Jantaworn","circle":["Austin food / hangout group","Tennis circle"],"closeness":"inner","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["Anita Chan","Sera Lee","Peter Hwang"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Doeun Kim","circle":[],"closeness":"inner","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Ben Lee","circle":["Austin food / hangout group"],"closeness":"orbit","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Alan Cho","circle":["Tennis circle"],"closeness":"solid","introduced_by":"Ethan Jantaworn","metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"named","circle_nominal":[]},{"name":"Amy Kim","circle":[],"closeness":"inner","introduced_by":null,"metro":"Houston","relation":"friend","manual_edge":["Fornia Van","Rachel Jeong"],"introduced_by_status":"not_asked","circle_nominal":[],"highlights":[{"with":["Rachel Jeong"]},{"with":["Fornia Van"]}]},{"name":"Andy Liu","relation":"friend","closeness":"inner","circle":["Racket sports crew"],"metro":"Austin","introduced_by":"Fornia Van","introduced_by_status":"named","manual_edge":["Sully Khan"],"circle_nominal":[]},{"name":"Eric Yan","relation":"friend","closeness":"orbit","circle":["Racket sports crew"],"circle_nominal":[],"metro":"Austin","manual_edge":null,"introduced_by":null,"introduced_by_status":"none_met_directly"},{"name":"Chen","relation":"friend","closeness":"orbit","circle":["Racket sports crew"],"circle_nominal":[],"metro":"New York","manual_edge":null,"introduced_by":"Eric Yan","introduced_by_status":"named"},{"name":"Kirtan Nagavarapu","relation":"friend","closeness":"orbit","circle":["Racket sports crew"],"circle_nominal":[],"metro":"Austin","manual_edge":null,"introduced_by":"Eric Yan","introduced_by_status":"named"},{"name":"Jason Tigas","relation":"friend","closeness":"orbit","circle":["Racket sports crew"],"circle_nominal":[],"metro":"Austin","manual_edge":null,"introduced_by":"Eric Yan","introduced_by_status":"named"},{"name":"Yoon Jang","circle":[],"closeness":"belt","introduced_by":"Soyoung Cho","metro":"Austin","relation":"friend","manual_edge":["Soyoung Cho"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Sooyeon","circle":[],"closeness":"belt","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["Minnom0_0"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"David Lim","circle":["Axolotle Fam"],"closeness":"orbit","introduced_by":"Kaitlyn Pham","metro":"DFW","relation":"friend","manual_edge":["Kaitlyn Pham"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Simone","circle":[],"closeness":"orbit","introduced_by":null,"metro":"California","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Minnom0_0","circle":[],"closeness":"belt","introduced_by":null,"metro":"Colorado","relation":"friend","manual_edge":["Sooyeon"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Linh Dam","circle":[],"closeness":"belt","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"exists_unnamed_withheld","circle_nominal":[]},{"name":"Kaitlyn Pham","circle":["Axolotle Fam"],"closeness":"orbit","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["David Lim"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Sergei Wong","circle":[],"closeness":"orbit","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["Laura Sales"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Eunice Park","circle":[],"closeness":"belt","introduced_by":null,"metro":"Galveston","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Jing Zhou","circle":[],"closeness":"belt","introduced_by":"Bryan Wu","metro":"Seattle","relation":"friend","manual_edge":["Bryan Wu"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Ebaad Suhail","circle":["Axolotle Fam"],"closeness":"orbit","introduced_by":"Kaitlyn Pham","metro":"DFW","relation":"friend","manual_edge":null,"introduced_by_status":"named","circle_nominal":[]},{"name":"Alex Houy","circle":[],"closeness":"orbit","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":["Ellison Pyon"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Sam Song","circle":[],"closeness":"orbit","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Kyle Villanueva","circle":[],"closeness":"orbit","introduced_by":null,"metro":null,"relation":"friend","manual_edge":["Joshua Vela","Bryan Yee","Shoham Sanyal","Minjun"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Kaitlyn Ngo","circle":[],"closeness":"belt","introduced_by":null,"metro":null,"relation":"friend","manual_edge":["imhibernatingt","Brian Van"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Bryan Wu","circle":[],"closeness":"belt","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":["Jing Zhou"],"introduced_by_status":"exists_unnamed_withheld","circle_nominal":[]},{"name":"Maya","circle":[],"closeness":"belt","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"James Cha","circle":[],"closeness":"orbit","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Eliza Batongmalaki","circle":[],"closeness":"belt","introduced_by":null,"metro":"California","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Uiin","circle":[],"closeness":"belt","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Brian Van","circle":[],"closeness":"belt","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["Kaitlyn Ngo","imhibernatingt"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Laura Sales","circle":[],"closeness":"orbit","introduced_by":null,"metro":"Seattle","relation":"friend","manual_edge":["Sergei Wong"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Christian Carmona","circle":[],"closeness":"orbit","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Anita Chan","circle":[],"closeness":"belt","introduced_by":"Ethan Jantaworn","metro":"DFW","relation":"friend","manual_edge":["Sera Lee","Ethan Jantaworn"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Sera Lee","circle":[],"closeness":"belt","introduced_by":"Ethan Jantaworn","metro":"DFW","relation":"friend","manual_edge":["Anita Chan","Ethan Jantaworn"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Seungmin Chun","circle":[],"closeness":"orbit","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Chris Kim","circle":[],"closeness":"belt","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Ellison Pyon","circle":[],"closeness":"belt","introduced_by":"Alex Houy","metro":"Austin","relation":"friend","manual_edge":["Alex Houy"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Sarah Friedman","circle":[],"closeness":"orbit","introduced_by":null,"metro":null,"relation":"friend","manual_edge":null,"introduced_by_status":"none_met_directly","circle_nominal":[]},{"name":"Peter Hwang","circle":[],"closeness":"solid","introduced_by":null,"metro":null,"relation":"friend","manual_edge":["William Le","Ethan Jantaworn"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"imhibernatingt","circle":[],"closeness":"belt","introduced_by":null,"metro":"Oregon","relation":"friend","manual_edge":["Kaitlyn Ngo","Brian Van"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Soyoung Cho","circle":[],"closeness":"belt","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":["Yoon Jang"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Sully Khan","circle":[],"closeness":"orbit","introduced_by":"Andy Liu","metro":"Austin","relation":"friend","manual_edge":["Andy Liu"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Christine Kim","circle":["Austin food / hangout group"],"closeness":"solid","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Joseph Lee","circle":[],"closeness":"belt","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Jack Hu","circle":[],"closeness":"belt","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Sangho Han","circle":[],"closeness":"orbit","introduced_by":null,"metro":"Austin","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Kevin Lee-Liu","circle":["High school Percussionists"],"closeness":"belt","introduced_by":null,"metro":null,"relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Youssef","circle":[],"closeness":"belt","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":["Mollik Shafin Rahman"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Ania Glowacki","circle":[],"closeness":"belt","introduced_by":null,"metro":null,"relation":"friend","manual_edge":["Minjun","Arabella Diedrich","Shoham Sanyal"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Arabella Diedrich","circle":[],"closeness":"belt","introduced_by":null,"metro":null,"relation":"friend","manual_edge":["Minjun","Ania Glowacki","Shoham Sanyal"],"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Dustin Nguyen","circle":["Iroh Fam"],"closeness":"belt","introduced_by":null,"metro":"DFW","relation":"friend","manual_edge":null,"introduced_by_status":"not_asked","circle_nominal":[]},{"name":"Yujin Kim","circle":["Austin food / hangout group"],"closeness":"inner","introduced_by":"William Le","metro":"Austin","relation":"friend","manual_edge":["William Le"],"introduced_by_status":"named","circle_nominal":[]},{"name":"Henry Liu","circle":[],"closeness":"solid","introduced_by":null,"metro":"New York","relation":"friend","manual_edge":["Becca"],"introduced_by_status":"none_met_directly","circle_nominal":[]},{"name":"Becca","circle":[],"closeness":"solid","introduced_by":null,"metro":"New York","relation":"friend","manual_edge":["Henry Liu"],"introduced_by_status":"none_met_directly","circle_nominal":[]}]};</script>
+<script>
+(function(){
+"use strict";
+var D = window.FM_DATA;
+var svg = document.getElementById('svg');
+
+/* ONE SWITCH FOR THE PAGE'S CHROME. He asked for just the map on 2026-10-26;
+   the rail/card/legend/integrity code below is untouched and simply has no
+   container to draw into. Flip any of these to true and re-add its element in
+   the markup above to get it back -- nothing was deleted. */
+/* PINNED BY build_public.py -- the card, rail, legend and integrity
+   panels are the surfaces that render free text. The public build has
+   no such text to render, and these stay false regardless of what the
+   private page does. */
+var CHROME = { rail:false, card:false, legend:false, integrity:false,
+               /* Cluster names moved OFF the canvas 2026-10-30 -- flip to true
+                  and the in-map labels (and the drag-a-circle handle that lives
+                  on them) come back exactly as they were. Nothing deleted. */
+               maplabels:false, panel:true };
+function slot(id){ return document.getElementById(id); }
+
+if(!D){
+  /* the load failure still has to be SAYABLE with no rail to say it in */
+  document.title = 'Friend Map — people.data.js did not load';
+  var warn = document.createElement('div');
+  warn.className = 'empty';
+  warn.style.cssText = 'padding:24px 18px;color:var(--ink2)';
+  warn.innerHTML = '<b>people.data.js did not load.</b><br>'+
+    'Run <code>python regen.py</code> in this folder, then reload.';
+  (slot('rail') || document.querySelector('.stage') || document.body).appendChild(warn);
+  return;
+}
+
+/* ---------------------------------------------------------------- constants */
+var W=1240, H=900, CX=620, CY=440;
+var SCHEMA = D._schema, PEOPLE = D.people;
+var CIRCLE_KEYS = Object.keys(SCHEMA.circles||{});
+var byName = {}; PEOPLE.forEach(function(p){ byName[p.name]=p; });
+var SELF = PEOPLE.filter(function(p){return p.relation==='self';})[0];
+var TODAY = new Date(); TODAY.setHours(0,0,0,0);
+var RING_R = {inner:13, solid:11, orbit:9, family:11, belt:7};
+
+/* THE GRAB RADIUS IS ALSO THE COLLISION RADIUS, and that identity is the whole
+   design. A hit pad wider than the gap between two people lets you grab the
+   wrong one; a collision body wider than the pad spends room it does not need.
+   So there is ONE number per person, used twice: `.hit` is drawn at it, and
+   the separation solver treats the disc as that big. Two hit targets therefore
+   cannot overlap however tight the layout gets -- not tuned, impossible.
+   It also answers "a bit more separation": the smallest node's body goes
+   10 -> 15, which pushed the closest pair from 2.5px of air to 12.3. The old
+   +2 was a DE-OVERLAP margin, and a de-overlap margin is not a comfortable
+   gap -- which is exactly why the layout read as clustered while measuring
+   technically clean.
+   DECLARED HERE, BESIDE RING_R, AND THE PLACEMENT IS LOAD-BEARING. These first
+   lived down in the sim block, below the node builder. `function hitR` hoists,
+   but `var HIT_PAD` hoists as UNDEFINED -- so every pad was created at
+   r="NaN", measured 0x0 and did nothing, while the overlap check written to
+   police them ran over zero-size circles and reported a clean 0. A detector
+   that measures nothing reads exactly like a pass. */
+var HIT_PAD = 5, HIT_MIN = 15;
+function hitR(r){ return Math.max(r + HIT_PAD, HIT_MIN); }
+/* The cluster handle's pad, same spirit: an 11px line of text is a 12px tall
+   target, which is nothing to aim at. Vertical gets more than horizontal
+   because the text is wide already and short always. */
+var CHIT_X = 7, CHIT_Y = 9;
+
+var problems = [];
+
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function el(tag,attrs){ var n=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(var k in attrs) if(attrs[k]!=null) n.setAttribute(k,attrs[k]); return n; }
+function first(s){ return String(s).split(/\s|\(/)[0]; }
+/* The SAME event is written up differently on each participant's record --
+   "Japan trip" on Bryan, "Japan, summer 2024 - the project's FIRST cross-circle
+   highlight..." on Lily. Both are the same edge, so the label is cut back to
+   its first clause and de-duplicated on its first word.                    */
+function shortWhat(h){
+  var w = String(h.what||'highlight').split(/\s+-\s+/)[0].split(',')[0].trim();
+  return w.slice(0,44);
+}
+function whyKey(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(' ')[0]; }
+
+/* ------------------------------------------------------------------- edges
+   DERIVED ONLY -- the three approved sources, plus the two explicit fields
+   (partner_of v31, manual_edge v26). Nothing is hand-drawn here.            */
+var edges = [], seen = {};
+/* Hand-named SUBTRACTS: pairs the derived model invents and he says are not
+   there. Counterpart of manual_edge, which is the hand-named ADD. Enforced
+   inside addEdge so no edge source can route around it. */
+var EXCL = {};
+(SCHEMA.edge_exclusions||[]).forEach(function(x){
+  EXCL[(x.pair||[]).slice().sort().join('~')] = x.why || 'excluded by him';
+});
+function addEdge(a,b,kind,why,dir){
+  if(!a||!b||a===b) return;
+  if(!byName[a]||!byName[b]) return;
+  if(EXCL[[a,b].sort().join('~')]) return;
+  var k = kind+'|'+[a,b].sort().join('~');
+  if(seen[k]){
+    if(why && !seen[k].why.some(function(x){ return whyKey(x)===whyKey(why); })) seen[k].why.push(why);
+    return;
+  }
+  var e={a:a,b:b,kind:kind,why:why?[why]:[],dir:!!dir};
+  seen[k]=e; edges.push(e);
+}
+
+/* (1) same circle -- real membership only. circle_nominal is excluded by
+       design: a nominal member would get false edges to every active member. */
+CIRCLE_KEYS.forEach(function(ck){
+  var m = PEOPLE.filter(function(p){ return (p.circle||[]).indexOf(ck)>=0; }).map(function(p){return p.name;});
+  for(var i=0;i<m.length;i++) for(var j=i+1;j<m.length;j++) addEdge(m[i],m[j],'circle',ck);
+});
+/* circles a person claims that are not in the registry = a forked cluster */
+PEOPLE.forEach(function(p){ (p.circle||[]).forEach(function(c){
+  if(CIRCLE_KEYS.indexOf(c)<0) problems.push({t:'circle key not in _schema.circles',d:p.name+' &rarr; <code>'+esc(c)+'</code>'});
+}); });
+
+/* (2) co-participation in a highlight */
+var unresolved = [];
+PEOPLE.forEach(function(p){
+  (p.highlights||[]).forEach(function(h){
+    var ros = (h['with']||[]).slice();
+    var label = shortWhat(h);
+    ros.forEach(function(n){
+      if(!byName[n]){ unresolved.push({who:p.name,name:n,what:label}); return; }
+      addEdge(p.name,n,'highlight',label);
+    });
+    for(var i=0;i<ros.length;i++) for(var j=i+1;j<ros.length;j++)
+      if(byName[ros[i]]&&byName[ros[j]]) addEdge(ros[i],ros[j],'highlight',label);
+  });
+});
+
+/* (3) introduced_by -- directional. Strictly a roster name since v37. */
+PEOPLE.forEach(function(p){
+  var ib = p.introduced_by;
+  if(!ib) return;
+  if(!byName[ib]){ problems.push({t:'introduced_by names a non-roster person',d:p.name+' &rarr; <code>'+esc(ib)+'</code>'}); return; }
+  addEdge(ib,p.name,'intro','introduction',true);
+});
+
+/* explicit fields */
+PEOPLE.forEach(function(p){
+  if(p.partner_of && byName[p.partner_of]) addEdge(p.name,p.partner_of,'partner','partners');
+  (p.manual_edge||[]).forEach(function(n){ if(byName[n]) addEdge(p.name,n,'manual','direct link, no named circle'); });
+});
+
+/* Degree is counted BEFORE the Kyuwon edges below, because every person gets
+   one -- so "pendant" means zero edges OTHER than the one to him.            */
+var deg = {}; PEOPLE.forEach(function(p){ deg[p.name]=0; });
+edges.forEach(function(e){ deg[e.a]++; deg[e.b]++; });
+var pendants = PEOPLE.filter(function(p){
+  return p.relation!=='self' && deg[p.name]===0 && !(p.circle||[]).length && p.relation!=='family'; })
+  .map(function(p){return p.name;});
+
+/* KYUWON CONNECTS TO EVERYONE -- his ruling 2026-10-13: "Since I'm the central
+   node, I should show up for everyone's connection. I didn't include anyone I'm
+   not friends/acquainted with."
+   The roster is, by construction, people he knows, so this edge is TRUE for all
+   of them. It was previously drawn only for pendants and family, which made its
+   ABSENCE read as "not connected to Kyuwon" -- false for 20 people.
+   It is deliberately the faintest thing on the canvas: a universal edge is a
+   constant, so it discriminates nothing. It is here because its absence lied,
+   not because its presence is informative.                                   */
+PEOPLE.forEach(function(p){
+  if(p.relation==='self') return;
+  if(p.relation==='family'){ addEdge(SELF.name,p.name,'family','family'); return; }
+  addEdge(SELF.name,p.name,'kyuwon',
+    deg[p.name]===0 ? 'he knows them \u2014 and this is their only edge' : 'he knows them');
+});
+
+/* nominal tie + withheld introducer stub: drawn to a PHANTOM anchor, never a node */
+var ties = [];
+PEOPLE.forEach(function(p){
+  (p.circle_nominal||[]).forEach(function(ck){ ties.push({from:p.name,kind:'nominal',target:ck,
+    why:'nominal member of '+ck+' &mdash; affiliation only, generates no edges'}); });
+  if(p.introduced_by_status==='exists_unnamed_withheld')
+    ties.push({from:p.name,kind:'stub',target:null,why:'introducer exists, name withheld by his choice'});
+});
+
+/* ------------------------------------------------------------------ layouts */
+function clusterRadius(n){ return Math.max(44, Math.min(120, 26+8*n)); }
+/* The thing that collides is the rendered NAME, not the node. ~5.6px per
+   character at the 10.5px label size, measured off the real labels. */
+function labelW(nm){ return String(nm).length * 5.6 + 6; }
+var GRID_MIN = 9;   /* above this a ring cannot hold the labels -- use a grid */
+function gridCols(k){ return 3; }   /* narrow and tall: labels are wide, rows are cheap */
+function gridBox(list){
+  var w = 0;
+  list.forEach(function(nm){ w = Math.max(w, labelW(nm)); });
+  return {cw: w + 16, ch: 50, cols: gridCols(list.length)};
+}
+function ringPos(cx,cy,r,i,n,a0){
+  var a = (a0==null?-Math.PI/2:a0) + (n?2*Math.PI*i/n:0);
+  return {x:cx+r*Math.cos(a), y:cy+r*Math.sin(a)};
+}
+
+/* signature layout: people are grouped by the SET of clusters they belong to,
+   so a multi-circle person sits between their clusters rather than in one of
+   them. The four Boys of Bell all hold {Boys of Bell, Iroh Fam}.
+   NOTE: `centreMembersKey` is now UNREACHABLE -- CITIES was the only caller
+   that passed one, and it stopped being a rosette on 2026-10-27 (see
+   cityLayout). The branch is left standing because CIRCLES passes null, so it
+   is inert, and because the R-derivation comment inside it is the record of
+   why a fixed cluster distance could not survive the next capture. Do not
+   revive it to lay out a group that holds a third of the roster -- the
+   arithmetic for why that cannot fit is on cityLayout. */
+function buildLayout(groupsOrder, groupOf, centreMembersKey, R, a0deg){
+  var centres = {}, n = groupsOrder.length, cAng = [];
+  /* R IS THE DISTANCE TO THE OUTER CLUSTERS AND IT WAS A FIXED NUMBER, while
+     the CENTRE cluster's ring radius is max(92, k*15) and grows with its
+     membership. Austin went 12 -> 15, its ring grew to 225, and the DFW grid
+     sitting at a fixed 340 collided with it. The constant was correct for the
+     membership it was chosen at -- the same scope error as the cluster-radius
+     cap before it -- so derive the spacing from the data instead of picking a
+     new number that will expire at the next capture. */
+  if(centreMembersKey){
+    var cmem = PEOPLE.filter(function(p){
+      var gs = groupOf(p);
+      return p.relation!=='self' && gs.length===1 && gs[0]===centreMembersKey; });
+    if(cmem.length > 1){
+      var wide = 0;
+      cmem.forEach(function(p){ wide = Math.max(wide, labelW(p.name)); });
+      R = Math.max(R, Math.max(92, cmem.length*15) + wide/2 + 120);
+    }
+  }
+  /* ⚠ MEASURED BROKEN AT 79 RECORDS, 2026-10-26 - NOT YET FIXED, AND THE FIX IS
+     NOT A CONSTANT. The pendant ring (people with no circle) sits at a fixed
+     172/116 and fans laps across the angular gaps. That was right for the 7
+     pendants it was written for; at 43 it yields 15 colliding name labels in
+     BOTH layouts, measured with getBoundingClientRect against a planted
+     positive control (16 -> 17), plus 1 cluster-label collision now that 9
+     circles sit where 7 did (AXOLOTLE FAM on HIGH SCHOOL PERCUSSIONISTS).
+     MECHANISM: the fan is +-0.44 rad while the gap is only 2pi/9 = 0.698 wide,
+     so lap 3 overshoots into the neighbouring gap.
+     WHY NO RADIUS FIXES IT: 43 labels at ~123px of arc each need r = 842 in a
+     1240x900 field, and growing the canvas to fit shrinks every label to ~6px
+     on screen. GRID_MIN already states the general law - "above this a ring
+     cannot hold the labels" - and 43 pendants is that case; the pendant path
+     has no grid escape. So this is an information-architecture choice about
+     where ~40 circle-less people belong, not a spacing tweak, and it is HIS
+     call: a pendant grid panel, a bigger canvas, or a toggle. Asked, not
+     guessed. Do not "fix" this by picking a new radius - that is the exact
+     error the comment above this one records. */
+  groupsOrder.forEach(function(g,i){
+    if(g===centreMembersKey){ centres[g]={x:CX,y:CY}; return; }
+    var idx = groupsOrder.filter(function(x){return x!==centreMembersKey;}).indexOf(g);
+    var m   = n - (centreMembersKey?1:0);
+    var a   = (a0deg==null?-Math.PI/2:a0deg*Math.PI/180) + 2*Math.PI*idx/m;
+    cAng.push(a);
+    centres[g]={x:CX+R*Math.cos(a), y:CY+R*Math.sin(a)};
+  });
+  /* Pendants ride an inner ring, and they must not sit on a spoke pointing at
+     a cluster -- the first pass put Fornia Van squarely on the Iroh Fam label.
+     Place them in the ANGULAR GAPS between clusters instead.               */
+  var gaps = cAng.map(function(a,i){
+    var b = cAng[(i+1) % cAng.length];
+    if(b < a) b += 2*Math.PI;
+    return (a+b)/2;
+  });
+
+  var sigs = {};
+  PEOPLE.forEach(function(p){
+    if(p.relation==='self') return;
+    var gs = groupOf(p);
+    var key = gs.length? gs.slice().sort().join(' + ') : '\u0000pendant';
+    (sigs[key] = sigs[key] || {gs:gs, list:[]}).list.push(p.name);
+  });
+
+  var pos = {};
+  pos[SELF.name] = {x:CX,y:CY};
+
+  Object.keys(sigs).sort().forEach(function(key){
+    var s = sigs[key], list = s.list.slice().sort(), k = list.length, cx, cy, rad, a0;
+    if(key.charCodeAt(0)===0){
+      rad = centreMembersKey?172:116;
+      list.forEach(function(nm,i){
+        var g0  = gaps.length? gaps[i % gaps.length] : -Math.PI/2 + 2*Math.PI*i/k;
+        var lap = Math.floor(i / Math.max(1, gaps.length));
+        var fan = (lap % 2 ? 1 : -1) * Math.ceil(lap/2) * 0.44;
+        var rr  = rad + lap*30;
+        pos[nm] = {x: CX + rr*Math.cos(g0+fan), y: CY + rr*Math.sin(g0+fan),
+                   up: Math.sin(g0+fan) < -0.02};
+      });
+      return;
+    } else if(s.gs.length===1){
+      var c=centres[s.gs[0]];
+      cx=c.x; cy=c.y;
+      rad = (s.gs[0]===centreMembersKey) ? Math.max(92, k*15) : clusterRadius(k);
+      if(k===1) rad = Math.min(rad, 46);
+      a0 = -Math.PI/2;
+    } else {
+      /* midpoint of the member clusters, pushed outward so it does not sit
+         inside either one -- the Bell Boys genuinely belong to both.        */
+      var sx=0, sy=0;
+      s.gs.forEach(function(g){ sx+=centres[g].x; sy+=centres[g].y; });
+      var mx=sx/s.gs.length, my=sy/s.gs.length;
+      var dx=mx-CX, dy=my-CY, len=Math.sqrt(dx*dx+dy*dy)||1;
+      cx = CX + dx/len*(len+104); cy = CY + dy/len*(len+104);
+      rad = Math.max(34, Math.min(58, 20+9*k)); a0 = -Math.PI/2;
+    }
+    if(k===1){ pos[list[0]]={x:cx,y:cy,up:false}; return; }
+    if(k >= GRID_MIN && s.gs[0] !== centreMembersKey){
+      var g = gridBox(list), rows = Math.ceil(k/g.cols);
+      var x0 = cx - (g.cols-1)*g.cw/2, y0 = cy - (rows-1)*g.ch/2;
+      list.forEach(function(nm,i){
+        pos[nm] = {x: x0 + (i % g.cols)*g.cw, y: y0 + Math.floor(i/g.cols)*g.ch, up:false};
+      });
+      return;
+    }
+    list.forEach(function(nm,i){
+      var q = ringPos(cx,cy,rad,i,k,a0);
+      /* name sits on the outward side of the ring, so adjacent names fan apart
+         instead of stacking on one line */
+      q.up = q.y < cy - 2;
+      pos[nm]=q;
+    });
+  });
+
+  /* A cluster label is placed above the CENTROID OF ITS ACTUAL MEMBERS, not
+     above the geometric cluster centre. Boys of Bell is why: all four of its
+     members also hold Iroh Fam, so they sit at the midpoint of the two and
+     the geometric centre holds nobody -- a label there reads as a cluster of
+     four that is visibly empty.                                            */
+  var labels = [];
+  groupsOrder.forEach(function(g){
+    var mem  = PEOPLE.filter(function(p){ return groupOf(p).indexOf(g)>=0; });
+    var solo = mem.filter(function(p){ return groupOf(p).length===1; });
+    var m = (solo.length?solo:mem).map(function(p){ return pos[p.name]; }).filter(Boolean);
+    if(!m.length) return;
+    var sx=0, top=1e9, bx=0;
+    m.forEach(function(q){ sx+=q.x; bx+=q.y; if(q.y<top) top=q.y; });
+    labels.push({key:g, x:Math.max(90,Math.min(W-90,sx/m.length)),
+                 y:Math.max(22,top-42), n:mem.length, mem:mem, solo:solo});
+  });
+
+  /* ---- cluster labels are placed against what is already there ----------
+     The label went a fixed 42px above its topmost member and NOTHING EVER
+     CHECKED WHAT WAS IN THAT SPACE. That held at six circles; the seventh
+     re-angled every cluster centre and The Usual Suspects' label landed on
+     two Iroh Fam nodes. Tuning the 42 is the wrong move -- the last layout
+     failure here was a constant that could not exist (the radius cap went
+     96 -> 150 -> 120 for 4 -> 1 -> 5 overlaps), and what fixed it was a
+     deterministic rule. Same shape here: try ABOVE, and if that box hits a
+     node label, take BELOW. Self-corrects the next time a circle is added. */
+  function nodeR(p){ return p.relation==='self' ? 18 : (RING_R[p.closeness] || 8); }
+  var nodeBoxes = PEOPLE.map(function(p){
+    var q = pos[p.name]; if(!q) return null;
+    var w = labelW(p.relation==='self' ? 'KYUWON' : p.name), r = nodeR(p);
+    return {x1:q.x-w/2, x2:q.x+w/2, y1:q.y+r+5, y2:q.y+r+19};
+  }).filter(Boolean);
+  function clabelBox(l,y){
+    var w = (l.key.length + String(l.n).length + 3) * 6.6;   /* 11px bold + .1em tracking */
+    return {x1:l.x-w/2, x2:l.x+w/2, y1:y-10, y2:y+3};
+  }
+  /* ...AND AGAINST THE LABELS ALREADY PLACED. The rule above said it would
+     "self-correct the next time a circle is added"; two were added at once
+     (Axolotle Fam, High school Percussionists) and AXOLOTLE FAM landed on
+     HIGH SCHOOL PERCUSSIONISTS -- because nHits only ever looked at NODE
+     boxes. A label is a thing in that space too. Placed labels now join the
+     obstacle set, so each one is laid against everything already there. */
+  var placed = [];
+  function nHits(b){
+    var n=0;
+    nodeBoxes.forEach(function(o){
+      if(b.x1<o.x2 && o.x1<b.x2 && b.y1<o.y2 && o.y1<b.y2) n++; });
+    placed.forEach(function(o){
+      if(b.x1<o.x2 && o.x1<b.x2 && b.y1<o.y2 && o.y1<b.y2) n+=2; });  /* label on label reads worse */
+    return n;
+  }
+  labels.forEach(function(l){
+    var above = nHits(clabelBox(l,l.y));
+    if(above){
+      var bot = -1e9;
+      (l.solo.length?l.solo:l.mem).forEach(function(p){
+        var q=pos[p.name]; if(q && q.y+nodeR(p) > bot) bot = q.y+nodeR(p); });
+      var yBelow = Math.min(H-14, bot+46);
+      if(nHits(clabelBox(l,yBelow)) < above){ l.y = yBelow; l.below = true; above = nHits(clabelBox(l,l.y)); }
+    }
+    /* last resort: walk it clear vertically rather than leave it stacked */
+    for(var step=1; above && step<=6; step++){
+      var dy = (l.below?1:-1) * step * 15, y2 = l.y + dy;
+      if(y2 < 18 || y2 > H-14) break;
+      if(nHits(clabelBox(l,y2)) < above){ l.y = y2; above = nHits(clabelBox(l,y2)); }
+    }
+    placed.push(clabelBox(l, l.y));
+  });
+
+  /* phantom anchors for nominal ties: toward that circle's cluster centre */
+  var anchors = {};
+  groupsOrder.forEach(function(g){ anchors[g]=centres[g]; });
+  return {pos:pos, labels:labels, anchors:anchors};
+}
+
+var LC = buildLayout(
+  CIRCLE_KEYS.concat(['Family']),
+  function(p){
+    var gs = (p.circle||[]).filter(function(c){return CIRCLE_KEYS.indexOf(c)>=0;}).slice();
+    if(p.relation==='family') gs.push('Family');
+    return gs;
+  }, null, 298);
+
+var METROS = (function(){
+  var m={}; PEOPLE.forEach(function(p){ if(p.relation==='self') return;
+    m[p.metro||'— metro not asked']=1; });
+  var ks=Object.keys(m).sort(function(a,b){
+    if(a==='Austin') return -1; if(b==='Austin') return 1;
+    if(a[0]==='—') return 1; if(b[0]==='—') return -1;
+    return a.localeCompare(b); });
+  return ks;
+})();
+/* ---- CITIES IS NOT A ROSETTE, AND ARITHMETIC SAYS IT CANNOT BE ONE -------
+   buildLayout puts one cluster at the centre and rings the rest around it at
+   radius R. That assumes the centre cluster is comparable in size to the
+   others. In CITIES it is not: Austin holds 31 of 80 and DFW holds 29, so two
+   of thirteen groups hold three quarters of the map.
+   WHAT THAT COST, MEASURED ON THE PAGE: the centre ring is max(92, k*15),
+   which is 450 at k=30 -- the full half-height of the field -- and R derives
+   from it, so R was 621 and EIGHT OF TWELVE metro centres were born outside a
+   1240x900 world. clampAll then pinned them to the border: 6 of 80 people in
+   the middle 40% of the field, 12 in the corner boxes, 16 within 45px of an
+   edge. A hollow donut. "way too separated, everything gets clustered in the
+   corners" is exactly what that geometry produces.
+   AND NO RADIUS FIXES IT. 29 name labels need ~117x56 each, so a DFW blob
+   needs sqrt(29*117*56/pi) = 232 units of radius whatever shape it takes, and
+   Austin needs the same. Nesting one inside a ring holding the other needs
+   232 + 232 + a gap, against the 426 of vertical half-space that exists. Two
+   blobs that size have to sit SIDE BY SIDE -- 464+464 fits across 1240 and
+   fits nowhere concentric. So this is not a constant to re-pick (the comments
+   in buildLayout record that error twice already); the topology was wrong.
+   WHAT IT IS INSTEAD: every metro is a block -- a header over a grid of its
+   members -- and the blocks are shelf-packed into the field, tallest first.
+   A rectangle tiled with rectangles uses its middle by construction, which is
+   the one thing a ring in a box can never do. Nothing here is a chosen
+   distance: cell size comes from the widest name in that metro, a block's
+   column count from its own aspect, and if the stack is taller than the field
+   the tallest block WIDENS (more columns, fewer rows) until it fits. */
+function cityLayout(groups, groupOf, homeKey){
+  var M=14, GX=26, GY=18, HDR=34, CH=64;
+  var AW=W-2*M, AH=H-2*M;
+  /* CH IS NOT A LOOKS NUMBER, IT IS THE TWO FOOTPRINTS THAT ACTUALLY MEET.
+     A row's name label ends at y + r + 15 + half the label box, and the pad of
+     the node below starts at y + CH - hitR(r). At CH=56 that left an inner
+     ring 0.5px of clearance -- so separate() had work to do in every cell of
+     the map, and the measured result was not a grid at all: 40 distinct y
+     bands instead of 8 rows, with the bottom row 130px short of its target.
+     A pitch that merely avoids overlap is not a pitch that holds a grid. */
+
+  var mem={};
+  groups.forEach(function(g){ mem[g]=[]; });
+  PEOPLE.forEach(function(p){
+    var g=groupOf(p)[0];
+    if(mem[g]) mem[g].push(p.name);          /* self included: he lives somewhere */
+  });
+  groups.forEach(function(g){ mem[g].sort(); });
+
+  function headW(g){ return (g.length + String(mem[g].length).length + 3)*6.6 + 10; }
+  function cellW(g){
+    var w=0; mem[g].forEach(function(nm){ w=Math.max(w, labelW(nm)); });
+    return w + 18;                            /* +18 so adjacent names clear by 8 */
+  }
+  var blocks = groups.map(function(g){
+    var k=mem[g].length, cw=cellW(g);
+    return {key:g, list:mem[g], k:k, cw:cw,
+            cols:Math.max(1, Math.min(k, Math.round(Math.sqrt(k*CH/cw)))), hdr:headW(g)};
+  });
+  function size(b){
+    b.rows=Math.ceil(b.k/b.cols);
+    b.w=Math.max(b.cols*b.cw, b.hdr);         /* a block is at least its own header */
+    b.h=HDR + b.rows*CH;
+  }
+  blocks.forEach(size);
+  /* home metro first -- it gets the top left -- then biggest first, which is
+     what every packer wants and also reads correctly: the big cities lead. */
+  blocks.sort(function(a,b){
+    if(a.key===homeKey) return -1;
+    if(b.key===homeKey) return 1;
+    return (b.w*b.h - a.w*a.h) || (b.k-a.k) || (a.key<b.key?-1:1);
+  });
+
+  /* GUILLOTINE FREE-RECTANGLE PACKING, and the one-pass shelf it replaces is
+     why. Shelves spend a whole row's height on that row's tallest block:
+     Austin and DFW are 476 and 544 wide, so they fill the width, and the
+     eleven small metros were pushed into rows of their own below. Free rects
+     let a one-person city use the 128px strip beside a 546-tall block, which
+     is the difference between fitting in 872 and not fitting at all. */
+  function pack(){
+    var free=[{x:M,y:M,w:AW,h:AH}], bad=0;
+    blocks.forEach(function(b){
+      var best=-1, bs=1e18;
+      for(var i=0;i<free.length;i++){
+        var f=free[i];
+        if(f.w < b.w || f.h < b.h) continue;
+        var s=(f.w-b.w)+(f.h-b.h) + f.y*0.6 + f.x*0.2;   /* fit, then top-left */
+        if(s < bs){ bs=s; best=i; }
+      }
+      if(best < 0){ bad++; b.x=M; b.y=M; return; }        /* reported, not hidden */
+      var f=free[best];
+      b.x=f.x; b.y=f.y;
+      free.splice(best,1);
+      if(f.w - b.w - GX > 0) free.push({x:f.x+b.w+GX, y:f.y, w:f.w-b.w-GX, h:b.h});
+      if(f.h - b.h - GY > 0) free.push({x:f.x, y:f.y+b.h+GY, w:f.w, h:f.h-b.h-GY});
+    });
+    return bad;
+  }
+  var bad=pack(), guard=0;
+  /* Something did not fit? WIDEN THE TALLEST BLOCK -- more columns is fewer
+     rows -- and pack again. Terminates at cols===k, and it is the same move
+     GRID_MIN already stands for: above some size a shape cannot hold its
+     labels, so change the shape rather than pick a new number. This is what
+     keeps the layout honest at 120 records without anyone editing it. */
+  while(bad && guard++ < 80){
+    var tall=null;
+    blocks.forEach(function(b){
+      if(b.rows>1 && b.cols<b.k && (!tall || b.h>tall.h)) tall=b; });
+    if(!tall) break;
+    tall.cols++; size(tall); bad=pack();
+  }
+  if(bad) console.warn('cityLayout: '+bad+' metro block(s) could not be placed');
+
+  /* centre whatever the packer used, so the map is not top-left heavy */
+  var x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;
+  blocks.forEach(function(b){
+    if(b.x<x1)x1=b.x; if(b.y<y1)y1=b.y;
+    if(b.x+b.w>x2)x2=b.x+b.w; if(b.y+b.h>y2)y2=b.y+b.h; });
+  var ox=(W-(x2-x1))/2 - x1, oy=(H-(y2-y1))/2 - y1;
+
+  var pos={}, labels=[], anchors={};
+  blocks.forEach(function(b){
+    b.x+=ox; b.y+=oy;
+    var gx0 = b.x + (b.w - (b.cols-1)*b.cw)/2;
+    var cy0 = b.y + HDR + CH/2;
+    var cells = b.list.map(function(nm,i){
+      return {nm:nm, x: gx0 + (i%b.cols)*b.cw, y: cy0 + Math.floor(i/b.cols)*CH};
+    });
+    /* HE SITS IN HIS CITY, IN THE MIDDLE OF IT. The centre of the canvas
+       belongs to a block now, so (CX,CY) is no longer a seat -- it is whatever
+       the packing lands there, which could be a metro of one. Austin is where
+       he is, so Austin is where he goes, and he takes the cell nearest that
+       block's centre. In CIRCLES he is still pinned to the middle; this is the
+       cities layout's answer, not a new rule about him. */
+    if(SELF && b.list.indexOf(SELF.name)>=0 && cells.length){
+      var bcx=b.x+b.w/2, bcy=b.y+HDR+b.rows*CH/2, bi=0, bd=1e9;
+      cells.forEach(function(c,i){
+        var d=(c.x-bcx)*(c.x-bcx)+(c.y-bcy)*(c.y-bcy);
+        if(d<bd){ bd=d; bi=i; } });
+      var si=b.list.indexOf(SELF.name);
+      var swap=cells[si].nm; cells[si].nm=cells[bi].nm; cells[bi].nm=swap;
+    }
+    cells.forEach(function(c){ pos[c.nm]={x:c.x, y:c.y, up:false}; });
+    anchors[b.key]={x:b.x+b.w/2, y:b.y+b.h/2};
+    var memP = b.list.map(function(nm){ return byName[nm]; }).filter(Boolean);
+    labels.push({key:b.key, x:b.x+b.w/2, y:b.y+HDR-10, n:b.k, mem:memP, solo:memP});
+  });
+  return {pos:pos, labels:labels, anchors:anchors};
+}
+
+var LT = cityLayout(METROS,
+  function(p){ return [p.metro||'— metro not asked']; }, 'Austin');
+
+/* ------------------------------------------------------------------ drawing */
+var gE = el('g',{}), gT = el('g',{}), gL = el('g',{}), gN = el('g',{});
+svg.appendChild(gE); svg.appendChild(gT); svg.appendChild(gL); svg.appendChild(gN);
+var defs = el('defs',{});
+['intro'].forEach(function(){
+  var mk = el('marker',{id:'arw',viewBox:'0 0 8 8',refX:7,refY:4,markerWidth:5,markerHeight:5,orient:'auto'});
+  mk.appendChild(el('path',{d:'M0,0 L8,4 L0,8 z',fill:'var(--e-intro)'}));
+  defs.appendChild(mk);
+});
+svg.insertBefore(defs, gE);
+
+var EST = {
+  circle:{stroke:'var(--e-circle)',w:1,dash:null},
+  highlight:{stroke:'var(--e-hl)',w:1.8,dash:null},
+  intro:{stroke:'var(--e-intro)',w:1.6,dash:null,arrow:true},
+  partner:{stroke:'var(--e-partner)',w:2.6,dash:null},
+  manual:{stroke:'var(--e-manual)',w:1.5,dash:'5 4'},
+  kyuwon:{stroke:'var(--e-kyuwon)',w:1,dash:null},
+  family:{stroke:'var(--fam)',w:1.5,dash:'1 4'},
+  nominal:{stroke:'var(--e-nominal)',w:1.3,dash:'2 4'},
+  stub:{stroke:'var(--e-stub)',w:1.3,dash:'2 4'}
+};
+edges.sort(function(a,b){ return (a.kind==='kyuwon'?0:1)-(b.kind==='kyuwon'?0:1); });
+edges.forEach(function(e){
+  var s=EST[e.kind];
+  e.el = el('line',{'class':'edge',stroke:s.stroke,'stroke-width':s.w,
+    'stroke-dasharray':s.dash,'marker-end':s.arrow?'url(#arw)':null});
+  gE.appendChild(e.el);
+});
+ties.forEach(function(t){
+  var s=EST[t.kind];
+  t.el = el('line',{'class':'edge',stroke:s.stroke,'stroke-width':s.w,'stroke-dasharray':s.dash});
+  gT.appendChild(t.el);
+  t.cap = el('circle',{r:2.5,fill:s.stroke,'class':'edge'});
+  gT.appendChild(t.cap);
+});
+
+var labelEls=[], handleEls=[];
+function syncLabels(L){
+  gL.textContent='';
+  labelEls=[]; handleEls=[]; LAB=[];
+  /* With the names in the panel, the map draws none -- and LAB stays EMPTY,
+     which is the part that matters beyond the pixels: a cluster label was the
+     widest body in the collision system, so taking it out returns that room to
+     the people. The layout still computes L.labels; only the drawing and the
+     collision stop. */
+  if(!CHROME.maplabels) return;
+  L.labels.forEach(function(l){
+    LAB.push({ l:l, x:l.x, y:l.y, vx:0, vy:0,
+               hw:(l.key.length+String(l.n).length+3)*6.6/2 + 4, hh:9 });
+    /* A GROUP, BECAUSE THE TEXT CANNOT BE THE HANDLE. `.clabel` is
+       pointer-events:none -- deliberately, so a wide label never swallows the
+       click of a node behind it -- and the drag listener used to sit on that
+       same element, so "drag a circle's label to move the whole circle" was
+       dead from the day it was written. The group takes the listener, an
+       invisible rect takes the pointer, the text stays inert.
+       AND THE GROUP IS WHAT MOVES. The text used to carry absolute x/y that
+       paint() rewrote every frame; a sibling rect cannot follow that. So the
+       handle adopts the node idiom -- children at local 0,0, a transform on
+       the group -- and the pad travels with the text by construction instead
+       of by a second position that has to be kept in sync. */
+    var h=el('g',{'class':'chandle',tabindex:0,role:'button',
+                  transform:'translate('+l.x.toFixed(1)+','+l.y.toFixed(1)+')'});
+    h.setAttribute('aria-label','Move the '+l.key+' group — '+l.n+' people');
+    var pad=el('rect',{'class':'chit'});           /* sized once measured */
+    h.appendChild(pad);
+    var t=el('text',{'class':'clabel'});
+    t.appendChild(document.createTextNode(l.key.toUpperCase()));
+    var sp=el('tspan',{'class':'n',dx:6}); sp.textContent='('+l.n+')'; t.appendChild(sp);
+    if(l.sub) t.setAttribute('opacity','.55');
+    h.appendChild(t);
+    h._l = l; h._pad = pad; h._tx = t;
+    h.addEventListener('pointerdown', function(ev){
+      ev.preventDefault();
+      startDrag(ev, l.mem.map(function(p){ return p.name; })
+                      .filter(function(n){ return cur[n] && n!==SELFNAME; }));
+    });
+    h.addEventListener('keydown', function(ev){
+      /* dragging is a pointer gesture; from the keyboard the handle at least
+         does something truthful -- it selects the circle through a member,
+         which highlights that cluster and its ties. */
+      if(ev.key==='Enter'||ev.key===' '){
+        ev.preventDefault();
+        var first=l.mem.filter(function(p){ return cur[p.name]; })[0];
+        if(first) select(first.name);
+      }
+    });
+    gL.appendChild(h); labelEls.push(t); handleEls.push(h);
+  });
+  /* measured, not estimated -- same reason as the node labels. ONE BOX, TWO
+     JOBS: the rect the pointer hits and the body the solver separates are the
+     same rectangle, so a bigger grab area cannot cost a node its own clicks.
+     The bbox is LOCAL now (children sit at 0,0), so ox/oy are the offset
+     directly rather than a difference against the label's own position. */
+  for(var i=0;i<labelEls.length && i<LAB.length;i++){
+    try{
+      var bb=labelEls[i].getBBox(), la=LAB[i];
+      la.ox = bb.x+bb.width/2; la.oy = bb.y+bb.height/2;
+      la.hw = bb.width/2+CHIT_X; la.hh = bb.height/2+CHIT_Y;
+      var pd = handleEls[i]._pad;
+      pd.setAttribute('x', (bb.x-CHIT_X).toFixed(1));
+      pd.setAttribute('y', (bb.y-CHIT_Y).toFixed(1));
+      pd.setAttribute('width',  (bb.width+2*CHIT_X).toFixed(1));
+      pd.setAttribute('height', (bb.height+2*CHIT_Y).toFixed(1));
+    }catch(e){}
+  }
+}
+
+var nodes={};
+PEOPLE.forEach(function(p){
+  var g = el('g',{'class':'node',tabindex:0,role:'button'});
+  g.setAttribute('aria-label', p.name+' — '+(p.closeness||'ring not asked'));
+  var ring = p.closeness, isSelf = p.relation==='self', isFam = p.relation==='family';
+  var pend = p.capture_status==='pending';
+  var fill, stroke, sw=1.6, shape;
+  if(isSelf){ fill='var(--self)'; stroke='var(--self)'; }
+  else if(!ring){ fill='none'; stroke='var(--none)'; sw=1.4; }
+  else if(ring==='orbit'){ fill='var(--bg)'; stroke='var(--orbit)'; sw=2.2; }
+  /* Hollow like orbit, thinner and cooler: the ring series reads inward by
+     weight as well as by size. */
+  else if(ring==='belt'){ fill='none'; stroke='var(--belt)'; sw=1.5; }
+  else if(ring==='family'){ fill='var(--fam)'; stroke='var(--fam)'; }
+  else { fill = ring==='inner'?'var(--inner)':'var(--solid)'; stroke=fill; }
+  if(isFam){ stroke='var(--fam)'; }
+
+  var r = isSelf?18:(RING_R[ring]||8);
+  /* FIRST CHILD, SO IT SITS UNDER THE DRAWING -- the visible shape keeps every
+     style and the pad only ever collects pointers. Radius is hitR(r), the same
+     number the solver uses for this node's body, which is why two of these can
+     never overlap and a grab can never land on the wrong person. */
+  g.appendChild(el('circle',{'class':'hit',r:hitR(r)}));
+  if(isFam && !isSelf){
+    shape = el('rect',{'class':'shape',x:-r,y:-r,width:2*r,height:2*r,rx:4,
+      fill:fill,stroke:stroke,'stroke-width':sw,'stroke-dasharray':pend?'3 3':null});
+  } else {
+    shape = el('circle',{'class':'shape',r:r,fill:fill,stroke:stroke,'stroke-width':sw,
+      'stroke-dasharray':pend?'3 3':null});
+  }
+  g.appendChild(shape);
+  if(ring==='inner' && !isSelf)
+    g.appendChild(el('circle',{'class':'shape',r:r+4.5,fill:'none',stroke:stroke,'stroke-width':1,opacity:.45}));
+  if(isSelf)
+    g.appendChild(el('circle',{'class':'shape',r:24,fill:'none',stroke:'var(--self)','stroke-width':1,opacity:.4}));
+
+  var tx = el('text',{'class':'nlabel',y:r+15});
+  tx.textContent = isSelf?'KYUWON':p.name;
+  g.appendChild(tx);
+  g._tx = tx; g._r = r;
+
+  g.addEventListener('click',function(){
+    if(suppressClick){ suppressClick=false; return; }   /* that was a drag */
+    select(p.name); });
+  g.addEventListener('keydown',function(ev){
+    if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); select(p.name); } });
+  g.addEventListener('mouseenter',function(){ hot(p.name); });
+  g.addEventListener('mouseleave',function(){ hot(selected); });
+  g.addEventListener('focus',function(){ hot(p.name); });
+  g.addEventListener('blur',function(){ hot(selected); });
+  gN.appendChild(g);
+  nodes[p.name]={g:g,p:p};
+});
+
+/* ------------------------------------------------------------------- morph */
+var mode='circles', cur={}, anchors=LC.anchors;
+function target(){ return mode==='circles'?LC:LT; }
+Object.keys(LC.pos).forEach(function(n){ cur[n]={x:LC.pos[n].x,y:LC.pos[n].y}; });
+syncLabels(LC);
+
+function paint(){
+  var L=target();
+  Object.keys(nodes).forEach(function(n){
+    var c=cur[n]; if(!c) return;
+    var g=nodes[n].g;
+    g.setAttribute('transform','translate('+c.x.toFixed(1)+','+c.y.toFixed(1)+')');
+    var up = L.pos[n] && L.pos[n].up;
+    g._tx.setAttribute('y', up ? -(g._r+8) : (g._r+15));
+  });
+  edges.forEach(function(e){
+    var a=cur[e.a], b=cur[e.b]; if(!a||!b) return;
+    e.el.setAttribute('x1',a.x.toFixed(1)); e.el.setAttribute('y1',a.y.toFixed(1));
+    e.el.setAttribute('x2',b.x.toFixed(1)); e.el.setAttribute('y2',b.y.toFixed(1));
+  });
+  /* labels are simulated bodies; paint just reads where they ended up. The
+     HANDLE moves, and its text and hit pad ride along -- one position, like a
+     node, instead of a text position plus a rect position to keep in step. */
+  for(var li=0; li<LAB.length && li<handleEls.length; li++){
+    handleEls[li].setAttribute('transform',
+      'translate('+LAB[li].x.toFixed(1)+','+LAB[li].y.toFixed(1)+')');
+  }
+  ties.forEach(function(t){
+    var a=cur[t.from]; if(!a) return;
+    var tg = t.target && anchors[t.target];
+    var bx,by;
+    if(tg){ var dx=tg.x-a.x, dy=tg.y-a.y, L=Math.sqrt(dx*dx+dy*dy)||1;
+      bx=a.x+dx/L*Math.min(L*0.55,120); by=a.y+dy/L*Math.min(L*0.55,120); }
+    else { bx=a.x+34; by=a.y-30; }
+    t.el.setAttribute('x1',a.x.toFixed(1)); t.el.setAttribute('y1',a.y.toFixed(1));
+    t.el.setAttribute('x2',bx.toFixed(1)); t.el.setAttribute('y2',by.toFixed(1));
+    t.cap.setAttribute('cx',bx.toFixed(1)); t.cap.setAttribute('cy',by.toFixed(1));
+  });
+}
+paint();
+
+/* ------------------------------------------------- the settle (sim + drag)
+   TWO PROBLEMS, ONE MECHANISM. At 79 records the deterministic layouts put
+   16 pairs of NAME LABELS on top of each other (0 at 37) -- 15 of them among
+   the 43 pendants, who ride one ring. A bigger radius cannot fix that: 43
+   labels need ~123px of arc each, i.e. r=842 inside a 1240x900 field, and
+   growing the canvas shrinks every label to ~6px. GRID_MIN already says a
+   ring cannot hold them.
+
+   So the layouts stop being POSITIONS and become ANCHORS. A spring pulls
+   each node to its anchor, a label-aware collision pushes overlapping names
+   apart, and the balance between them is a layout that keeps the
+   deterministic structure AND is readable. Equilibrium, not a constant --
+   which is the standing lesson of every layout fix in this file.
+
+   It also answers the morph for free. Switching CIRCLES <-> CITIES now moves
+   the anchors and the same nodes FLOW there, so correspondence -- the thing
+   the morph exists to show -- is preserved by construction rather than by a
+   760ms tween that had to be kept in sync. And it makes the graph draggable:
+   drag a person, or drag a circle's label to move the whole circle, and the
+   neighbours yield and settle. Release returns them to the flow. */
+
+var SELFNAME = SELF ? SELF.name : null;
+/* THE BOX HAS TO BE WHERE THE TEXT IS. The first three attempts separated a
+   box CENTRED ON THE NODE while the name is drawn 15px BELOW it -- so the box
+   covered the disc and missed most of the label, and two nodes could sit
+   "clear" with their names squarely on top of each other. Measuring proved it
+   and inverted the guess: the estimated boxes were ~2x too WIDE (Rachel Jeong
+   39.6 vs a real 19.9) and far too short. Over-separating sideways, not
+   separating at all where it mattered.
+   So stop estimating. getBBox on the label returns its box IN THE NODE'S OWN
+   LOCAL SPACE, which is exactly the offset and size wanted -- the same call
+   that is wrong for screen-space overlap (v37) is right for a local offset. */
+var FOOT = {};
+function measureFeet(){
+  PEOPLE.forEach(function(p){
+    var nd = nodes[p.name]; if(!nd) return;
+    var r = p.relation==='self' ? 18 : (RING_R[p.closeness] || 8);
+    var f = { r:r, hr:hitR(r), dxD:0, dyD:r+15, hwD:8, hhD:6, dxU:0, dyU:-(r+8), hwU:8, hhU:6 };
+    try{
+      var was = nd.g._tx.getAttribute('y');
+      nd.g._tx.setAttribute('y', r+15);
+      var b = nd.g._tx.getBBox();
+      /* +3/+2 of air, not +2/+1: at the tighter padding two pairs settled
+         GRAZING -- 0.04px and 2.5px of real overlap. A box that resolves to
+         exactly touching reads as touching. */
+      f.dxD = b.x+b.width/2; f.dyD = b.y+b.height/2; f.hwD = b.width/2+5; f.hhD = b.height/2+3;
+      nd.g._tx.setAttribute('y', -(r+8));
+      b = nd.g._tx.getBBox();
+      f.dxU = b.x+b.width/2; f.dyU = b.y+b.height/2; f.hwU = b.width/2+5; f.hhU = b.height/2+3;
+      nd.g._tx.setAttribute('y', was);
+    }catch(e){}
+    FOOT[p.name] = f;
+  });
+}
+var ORDER = PEOPLE.map(function(p){ return p.name; })
+                  .filter(function(n){ return cur[n] && n!==SELFNAME; });
+
+Object.keys(cur).forEach(function(n){ cur[n].vx=0; cur[n].vy=0; });
+
+var SIM = { raf:null, alpha:0, drag:null, pinned:{}, transport:0 };
+var K_ANCHOR = 0.030, K_LABEL = 0.055, DAMP = 0.84, SEP_ITERS = 8, MAXV = 26;
+var EASE = 0.16;    /* transport rate -- see TRANSPORT in tick() */
+
+/* ===================== SPIKE: FLUID / OBSIDIAN-FEEL PHYSICS =====================
+   THROWAWAY. The shipped index.html springs every node to its own fixed anchor
+   and never reads `edges` in tick() at all, so dragging one person moves nobody
+   else -- neighbours only shift if the dragged disc physically collides with
+   them, then snap back to their posts. That is the rigidity.
+
+   Here edges are a FORCE. CIRCLES runs anchorless: link springs + global
+   repulsion + a weak pull to centre, which is the Obsidian recipe. The circles
+   still read because the edges are DERIVED from circle membership, so members
+   attract each other -- the clustering is emergent instead of placed.
+
+   CITIES keeps its anchors. A city is not a relation; no edge encodes it, so
+   springs have nothing to pull on and a force layout cannot express "Austin".
+*/
+var K_LINK = 0.0022,    /* link spring toward LINK_LEN */
+    LINK_LEN = 78,
+    CHARGE = 2600,      /* node-node repulsion, falls off with distance^2 */
+    CHARGE_MAX = 2.2,   /* cap one pair's repulsion so close pairs can't explode */
+    K_CENTER = 0.0016,  /* weak gravity; replaces the anchor as the thing that
+                           stops an anchorless graph drifting off the canvas */
+    FREE_DAMP = 0.90;   /* floatier than DAMP(0.84): the glide is most of the feel */
+function freeMode(){ return mode === 'circles'; }
+
+/* hitR / HIT_PAD / HIT_MIN / CHIT_X / CHIT_Y are declared up beside RING_R --
+   see the note there on why that position is load-bearing. The disc body in
+   bodies() reads f.hr, which measureFeet sets from hitR. */
+
+/* CLUSTER LABELS ARE BODIES TOO. The first pass had them ride their members
+   exactly, and they promptly sat on nodes (IROH FAM on Shoham Sanyal) and on
+   each other in CITIES, where 12 metros average two people. A label is the
+   widest thing on the canvas and the only one that was not in the collision
+   system -- so it goes in, with a spring to where its members are and the
+   same separation everything else obeys. One system, not two. */
+var LAB = [];
+function labelTarget(l){
+  var m=(l.solo && l.solo.length?l.solo:l.mem)
+          .map(function(p){ return cur[p.name]; }).filter(Boolean);
+  if(!m.length) return null;
+  var sx=0, edge=l.below?-1e9:1e9;
+  m.forEach(function(q){ sx+=q.x;
+    if(l.below){ if(q.y>edge) edge=q.y; } else if(q.y<edge) edge=q.y; });
+  return { x: Math.max(90, Math.min(W-90, sx/m.length)),
+           y: l.below ? Math.min(H-14, edge+40) : Math.max(22, edge-38) };
+}
+
+function kick(a){
+  SIM.alpha = Math.max(SIM.alpha, a==null?1:a);
+  SIM.frames = 0;
+  if(!SIM.raf) SIM.raf = requestAnimationFrame(tick);
+}
+
+/* one body list. Each entry carries an OFFSET from the thing it moves, so a
+   name label can be separated while the node it belongs to is what actually
+   travels. People contribute two bodies: the disc, and the label below it. */
+function bodies(){
+  var B=[], L=target(), i;
+  /* KYUWON IS PINNED AT THE CENTRE AND WAS THEREFORE IN NO BODY LIST AT ALL --
+     so nothing could be pushed off his label, and "KYUWON" sat under Amy Kim.
+     Pinned is not absent: he joins as a FIXED body, which others yield to. */
+  var list = SELFNAME ? [SELFNAME].concat(ORDER) : ORDER;
+  for(i=0;i<list.length;i++){
+    var n=list[i], f=FOOT[n], fx=(n===SELFNAME)||!!SIM.pinned[n], c=cur[n];
+    if(!f || !c) continue;
+    /* f.hr, not f.r+2: the body IS the grab disc (see hitR) */
+    B.push({ p:c, ox:0, oy:0, hw:f.hr, hh:f.hr, fixed:fx });
+    var up = L.pos[n] && L.pos[n].up;
+    B.push({ p:c, ox: up?f.dxU:f.dxD, oy: up?f.dyU:f.dyD,
+             hw: up?f.hwU:f.hwD, hh: up?f.hhU:f.hhD, fixed:fx });
+  }
+  for(i=0;i<LAB.length;i++)
+    B.push({ p:LAB[i], ox:LAB[i].ox||0, oy:LAB[i].oy||0,
+             hw:LAB[i].hw, hh:LAB[i].hh, fixed:false });
+  return B;
+}
+function separate(B){
+  var hits=0;
+  for(var it=0; it<SEP_ITERS; it++){
+    hits=0;
+    for(var i=0;i<B.length;i++){
+      var a=B[i], A=a.p;
+      for(var j=i+1;j<B.length;j++){
+        var b=B[j], Bp=b.p;
+        if(A===Bp) continue;                          /* same person's own parts */
+        var dx=(Bp.x+b.ox)-(A.x+a.ox), dy=(Bp.y+b.oy)-(A.y+a.oy);
+        var ox=(a.hw+b.hw)-Math.abs(dx), oy=(a.hh+b.hh)-Math.abs(dy);
+        if(ox<=0 || oy<=0) continue;                  /* boxes clear */
+        if(a.fixed && b.fixed) continue;
+        var pa = a.fixed?0:(b.fixed?1:.5), pb = b.fixed?0:(a.fixed?1:.5);
+        hits++;
+        if(ox < oy){                                  /* least-penetration axis */
+          var s=(dx<0?-1:1)*ox;
+          A.x-=s*pa; Bp.x+=s*pb;
+        } else {
+          var t=(dy<0?-1:1)*oy;
+          A.y-=t*pa; Bp.y+=t*pb;
+        }
+      }
+    }
+    clampAll(B);
+    if(!hits) break;
+  }
+  clampAll(B);
+  return hits;
+}
+/* KEEP EVERYONE ON THE CANVAS. Separation resolves on the least-penetration
+   axis, which in a vertically stacked pile keeps choosing "down" -- and once
+   alpha decays the anchor spring is gone, so nothing ever pulled them back:
+   content settled at -180..1215 in a 900-tall field and six people were
+   clipped off the page, while only 828 of the 1240 width was in use. Bounding
+   the world inside the solver forces it to spend the room it already has
+   instead of escaping upward and downward. */
+function clampAll(B){
+  var M = 10;
+  for(var i=0;i<B.length;i++){
+    var b=B[i], p=b.p;
+    if(b.fixed) continue;
+    var lo = M + b.hw - b.ox, hi = W - M - b.hw - b.ox;
+    p.x = hi<lo ? (lo+hi)/2 : Math.max(lo, Math.min(hi, p.x));
+    lo = M + b.hh - b.oy; hi = H - M - b.hh - b.oy;
+    p.y = hi<lo ? (lo+hi)/2 : Math.max(lo, Math.min(hi, p.y));
+  }
+}
+
+/* WHY alpha SCALES THE SPRING AND NOT JUST THE LOOP. First two attempts had a
+   constant anchor spring: it pulled overlapping nodes back together exactly as
+   fast as separation pushed them apart, so the sim reached an equilibrium that
+   still overlapped, and the count depended on the path taken (9 -> 12 -> 20
+   across two mode switches). The spring has to DECAY. Early frames are the
+   structure pass -- nodes fly to their circle; late frames are pure
+   de-overlap, with nothing pulling back. Separation is then a constraint
+   rather than a rival force, and once resolved it stays resolved because
+   nothing disturbs it. That is the whole reason a force layout converges, and
+   leaving it out is why tuning the constants could not have worked. */
+/* ...AND IF ANYTHING STILL ENDS UP OUTSIDE -- a hard drag, or a body the
+   clamp had to centre because it is wider than the canvas -- the view opens
+   up to include it rather than cropping a person out of his own map. Never
+   shrinks below the base frame, so the ordinary layout does not drift in
+   scale; eased, so it never snaps. "I want to make sure I can see everyone." */
+var VB={x:0,y:0,w:W,h:H};
+/* SPIKE: once the user has zoomed or panned, the auto-fit is no longer helping
+   -- it is fighting them for control of the viewBox. VIEW_LOCK hands the view
+   over for good (until Reset). Without this, every frame drags the camera back
+   and a scroll-zoom looks broken rather than ignored. */
+var VIEW_LOCK = 0;
+function fitView(B){
+  if(VIEW_LOCK) return;
+  var M=14, x1=0, y1=0, x2=W, y2=H;
+  for(var i=0;i<B.length;i++){
+    var b=B[i], px=b.p.x+b.ox, py=b.p.y+b.oy;
+    if(px-b.hw-M < x1) x1=px-b.hw-M;
+    if(py-b.hh-M < y1) y1=py-b.hh-M;
+    if(px+b.hw+M > x2) x2=px+b.hw+M;
+    if(py+b.hh+M > y2) y2=py+b.hh+M;
+  }
+  var k=0.14;
+  VB.x+=(x1-VB.x)*k; VB.y+=(y1-VB.y)*k;
+  VB.w+=((x2-x1)-VB.w)*k; VB.h+=((y2-y1)-VB.h)*k;
+  svg.setAttribute('viewBox', VB.x.toFixed(1)+' '+VB.y.toFixed(1)+' '+
+                              VB.w.toFixed(1)+' '+VB.h.toFixed(1));
+}
+
+/* TRANSPORT, AND IT IS NOT A SIMULATION. A layout change used to be run as
+   physics: spring everyone toward their new seat while the de-overlap
+   constraint keeps resolving contacts on the way. MEASURED on one Austin node
+   mid-flight: velocity steady at (-2.01, -8.79), pointing straight at its
+   cell, and the position moved 0.000002px that frame. The anchor pulled for
+   1000+ frames and separate() cancelled every pixel of it.
+   WHY, AND IT IS STRUCTURAL: 31 people converging on a 4x8 grid arrive as a
+   crowd. separate() resolves each contact on its least-penetration axis and
+   splits the push evenly, so a crowd of hard bodies all travelling the same
+   way locks into a lattice -- the ones in front block the ones behind and the
+   ones behind push the ones in front back out. The pile stopped 110px from
+   home (median; 584px worst) with the target grid measuring 0 conflicts. The
+   old rosette hid this because its targets were loose blobs: being 110px off
+   inside a 450-radius ring still looks like a ring. A grid shows every pixel.
+   SO COLLISIONS DO NOT RUN WHILE PEOPLE ARE TRAVELLING. A morph eases everyone
+   to their seat and lets them pass through each other on the way -- it is an
+   animation, not a physical claim -- and the settle phase afterwards starts its
+   first frame AT the layout instead of 400px short of it, which is the initial
+   condition the decaying spring above always assumed it had. */
+function tick(){
+  var L=target(), moving=0, i, n, c, t, A=SIM.alpha;
+  if(SIM.transport){
+    var far=0;
+    for(i=0;i<ORDER.length;i++){
+      n=ORDER[i]; c=cur[n]; t=L.pos[n];
+      if(SIM.pinned[n] || !t) continue;
+      c.x+=(t.x-c.x)*EASE; c.y+=(t.y-c.y)*EASE; c.vx=0; c.vy=0;
+      if(Math.abs(t.x-c.x)+Math.abs(t.y-c.y) > 0.6) far++;
+    }
+    /* labels ride to the position the LAYOUT gave them, not to a centroid of
+       members that are themselves still moving -- chasing a moving average is
+       how a label ends up 275px from its own block. */
+    for(i=0;i<LAB.length;i++){
+      var lb=LAB[i];
+      lb.x+=(lb.l.x-lb.x)*EASE; lb.y+=(lb.l.y-lb.y)*EASE; lb.vx=0; lb.vy=0;
+      if(Math.abs(lb.l.x-lb.x)+Math.abs(lb.l.y-lb.y) > 0.6) far++;
+    }
+    if(SELFNAME && cur[SELFNAME]){
+      var ts=L.pos[SELFNAME] || {x:CX,y:CY}, cs=cur[SELFNAME];
+      cs.x+=(ts.x-cs.x)*EASE; cs.y+=(ts.y-cs.y)*EASE;
+    }
+    SIM.frames = (SIM.frames||0)+1;
+    if(!far || SIM.frames > 240){ SIM.transport=0; SIM.alpha=1; SIM.frames=0; }
+    fitView(bodies()); paint();
+    SIM.raf = requestAnimationFrame(tick);
+    return;
+  }
+  var FREE = freeMode();
+  if(FREE){
+    /* --- repulsion, every pair. 82 nodes is 3.3k pairs; trivial per frame. --- */
+    for(i=0;i<ORDER.length;i++){
+      var ca = cur[ORDER[i]]; if(!ca) continue;
+      for(var j=i+1;j<ORDER.length;j++){
+        var cb = cur[ORDER[j]]; if(!cb) continue;
+        var rx = cb.x-ca.x, ry = cb.y-ca.y, d2 = rx*rx+ry*ry;
+        if(d2 < 1) { rx = (Math.random()-0.5); ry = (Math.random()-0.5); d2 = 1; }
+        var fr = CHARGE/d2; if(fr > CHARGE_MAX) fr = CHARGE_MAX;
+        var dd = Math.sqrt(d2), ux = rx/dd, uy = ry/dd;
+        ca.vx -= ux*fr; ca.vy -= uy*fr;
+        cb.vx += ux*fr; cb.vy += uy*fr;
+      }
+    }
+    /* --- link springs. THIS is the give: a dragged node is still pinned, so it
+       does not move, but it keeps pulling on everything tied to it, and that
+       pull attenuates outward through the graph exactly like Obsidian. --- */
+    for(i=0;i<edges.length;i++){
+      var e=edges[i], pa=cur[e.a], pb=cur[e.b];
+      if(!pa || !pb) continue;
+      var ex=pb.x-pa.x, ey=pb.y-pa.y, ed=Math.sqrt(ex*ex+ey*ey) || 0.001;
+      var f = (ed - LINK_LEN) * K_LINK;
+      var ax=(ex/ed)*f, ay=(ey/ed)*f;
+      pa.vx += ax; pa.vy += ay;
+      pb.vx -= ax; pb.vy -= ay;
+    }
+    /* --- integrate. A pinned node accumulates force and discards it: it stays
+       under the cursor, which is what makes the drag feel solid while the web
+       around it stays live. --- */
+    for(i=0;i<ORDER.length;i++){
+      n=ORDER[i]; c=cur[n];
+      if(!c) continue;
+      if(SIM.pinned[n]){ c.vx=0; c.vy=0; continue; }
+      c.vx = (c.vx + (CX-c.x)*K_CENTER) * FREE_DAMP;
+      c.vy = (c.vy + (CY-c.y)*K_CENTER) * FREE_DAMP;
+      var sp2 = Math.abs(c.vx)+Math.abs(c.vy);
+      if(sp2 > MAXV){ var k2=MAXV/sp2; c.vx*=k2; c.vy*=k2; }
+      c.x += c.vx; c.y += c.vy;
+      if(sp2 > 0.06) moving++;
+    }
+  } else {
+    for(i=0;i<ORDER.length;i++){
+      n=ORDER[i]; c=cur[n]; t=L.pos[n];
+      if(SIM.pinned[n] || !t) continue;
+      c.vx = (c.vx + (t.x-c.x)*K_ANCHOR*A) * DAMP;
+      c.vy = (c.vy + (t.y-c.y)*K_ANCHOR*A) * DAMP;
+      var sp = Math.abs(c.vx)+Math.abs(c.vy);
+      if(sp > MAXV){ var k=MAXV/sp; c.vx*=k; c.vy*=k; }
+      c.x += c.vx; c.y += c.vy;
+      if(sp > 0.06) moving++;
+    }
+  }
+  for(i=0;i<LAB.length;i++){
+    var la=LAB[i], lt=labelTarget(la.l);
+    if(!lt) continue;
+    /* In free mode the nodes never stop moving, so a label spring scaled by a
+       decaying alpha would stop tracking its own cluster and be left behind.
+       Floor it. */
+    var LA = freeMode() ? Math.max(A, 0.45) : A;
+    la.vx=(la.vx+(lt.x-la.x)*K_LABEL*LA)*DAMP;
+    la.vy=(la.vy+(lt.y-la.y)*K_LABEL*LA)*DAMP;
+    la.x+=la.vx; la.y+=la.vy;
+    if(Math.abs(la.vx)+Math.abs(la.vy) > 0.06) moving++;
+  }
+  var B = bodies();
+  var left = separate(B);
+  /* HE IS PINNED TO HIS SEAT, NOT TO THE CENTRE OF THE CANVAS. This was a
+     hard assignment to (CX,CY) every frame, which was the same thing while
+     both layouts put him there. CITIES now seats him inside Austin, so the
+     pin follows the layout instead of the geometry -- eased, so the toggle
+     carries him across rather than teleporting him. He stays a FIXED body in
+     separate(), so he is still the thing everyone else yields to. In CIRCLES
+     his target IS (CX,CY) and nothing about this moves him. */
+  if(SELFNAME && cur[SELFNAME]){
+    var st=L.pos[SELFNAME] || {x:CX,y:CY}, sc=cur[SELFNAME];
+    sc.x += (st.x-sc.x)*0.12; sc.y += (st.y-sc.y)*0.12;
+    if(Math.abs(st.x-sc.x)+Math.abs(st.y-sc.y) > 0.4) moving++;
+  }
+  fitView(B);
+  paint();
+  /* Free mode keeps a floor of warmth so the graph always has a little life in
+     it and a drag never has to "wake" anything -- the settle still happens,
+     because damping and the force balance do it, not a decaying coefficient. */
+  SIM.alpha *= freeMode() ? 0.985 : 0.955;
+  if(freeMode() && SIM.alpha < 0.22) SIM.alpha = 0.22;
+  if(SIM.alpha < 0.004) SIM.alpha = 0;
+  SIM.frames = (SIM.frames||0)+1;
+  /* keep going while anything still overlaps, with a budget so a genuinely
+     unsatisfiable set (more labels than room) cannot spin forever */
+  /* Free mode has a permanent alpha floor, so the old condition would spin
+     forever at full tilt. Park the loop once nothing is actually moving and no
+     pointer is down; any kick() or hover restarts it. */
+  var busy = moving || SIM.drag || (left && SIM.frames < 900);
+  if(freeMode() ? busy : (busy || SIM.alpha))
+    SIM.raf = requestAnimationFrame(tick);
+  else { SIM.raf=null; if(!freeMode()) SIM.alpha=0; }
+}
+
+/* ----------------------------------------------------------------- dragging */
+/* getScreenCTM, not a width ratio: the viewBox now moves AND preserveAspectRatio
+   letterboxes it, so a naive ratio drifts the grab point. The CTM knows both. */
+function svgPt(ev){
+  var m = svg.getScreenCTM && svg.getScreenCTM();
+  if(m){
+    var inv = m.inverse();
+    return { x: ev.clientX*inv.a + ev.clientY*inv.c + inv.e,
+             y: ev.clientX*inv.b + ev.clientY*inv.d + inv.f };
+  }
+  var b=svg.getBoundingClientRect(), vb=svg.viewBox.baseVal;
+  return { x: vb.x+(ev.clientX-b.left)*vb.width/b.width,
+           y: vb.y+(ev.clientY-b.top)*vb.height/b.height };
+}
+function startDrag(ev, names, onMove){
+  if(ev.button!=null && ev.button!==0) return;
+  var p0=svgPt(ev), moved=false;
+  var base={}; names.forEach(function(n){ if(cur[n]) base[n]={x:cur[n].x,y:cur[n].y}; });
+  SIM.drag = names;
+  /* NO setPointerCapture. It throws NotFoundError whenever the pointer is not
+     currently active -- a cancelled touch, a stale id -- and it sat BEFORE the
+     listeners were attached, so the throw killed the whole drag silently. The
+     move/up listeners live on window, which already survives leaving the
+     element, so the capture bought nothing and could only fail. */
+  function move(e){
+    var p=svgPt(e), dx=p.x-p0.x, dy=p.y-p0.y;
+    if(!moved && Math.abs(dx)+Math.abs(dy) < 4) return;   /* let a click stay a click */
+    if(!moved){ moved=true; svg.classList.add('dragging'); names.forEach(function(n){ SIM.pinned[n]=1; }); }
+    names.forEach(function(n){
+      if(!base[n]) return;
+      cur[n].x = base[n].x+dx; cur[n].y = base[n].y+dy; cur[n].vx=0; cur[n].vy=0;
+    });
+    if(onMove) onMove();
+    kick(1);
+  }
+  function up(){
+    window.removeEventListener('pointermove',move);
+    window.removeEventListener('pointerup',up);
+    window.removeEventListener('pointercancel',up);
+    names.forEach(function(n){ delete SIM.pinned[n]; });
+    SIM.drag=null; svg.classList.remove('dragging');
+    if(moved) suppressClick=true;
+    kick(1);                       /* released: physics carries them home */
+  }
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',up);
+  window.addEventListener('pointercancel',up);
+}
+var suppressClick=false;
+
+Object.keys(nodes).forEach(function(n){
+  nodes[n].g.addEventListener('pointerdown',function(ev){ startDrag(ev,[n]); });
+});
+
+var anim=null;
+function morph(){
+  anchors = target().anchors;
+  syncLabels(target());
+  /* a layout change is transport; a drag release is not, and still relaxes
+     through the spring the way it always did */
+  SIM.transport = 1; SIM.frames = 0;
+  kick(1);
+}
+function setMode(m){
+  if(m===mode) return;
+  mode=m;
+  document.getElementById('bC').setAttribute('aria-pressed', m==='circles');
+  document.getElementById('bT').setAttribute('aria-pressed', m==='cities');
+  morph();
+}
+document.getElementById('bC').onclick=function(){ setMode('circles'); };
+document.getElementById('bT').onclick=function(){ setMode('cities'); };
+measureFeet();      /* needs the labels in the DOM; getBBox is 0 before that */
+syncLabels(LC);     /* re-measure the cluster labels now the font has loaded */
+kick(1);
+
+/* ----------------------------------------------------------- hover + select */
+var selected=null;
+
+/* Clearing a pin used to need a second click on the SAME person, which means
+   knowing who is pinned and hitting a disc to undo it. Anywhere is the escape
+   hatch: empty canvas, empty panel, or Esc. */
+function deselect(){
+  if(selected===null) return;
+  selected=null;
+  hot(null);
+  syncPanelSel();
+  if(CHROME.card && card) card.innerHTML='';
+}
+function hot(n){
+  var on=!!n;
+  Object.keys(nodes).forEach(function(k){
+    nodes[k].g.classList.toggle('dim', on && k!==n && !touching(n,k));
+    nodes[k].g.classList.toggle('sel', k===selected);
+  });
+  edges.forEach(function(e){
+    var mine = on && (e.a===n||e.b===n);
+    e.el.classList.toggle('dim', on && !mine);
+    e.el.classList.toggle('hot', mine);
+  });
+  ties.forEach(function(t){
+    var mine = on && t.from===n;
+    [t.el,t.cap].forEach(function(x){ x.classList.toggle('dim', on && !mine); });
+  });
+}
+function touching(n,k){ return edges.some(function(e){
+  return (e.a===n&&e.b===k)||(e.b===n&&e.a===k); }); }
+
+/* Highlight a whole CIRCLE. Deliberately not hot()'s rule: a person lights up
+   their neighbours, but a nine-person circle's neighbours are most of the map,
+   and lighting most of the map is the same as lighting none of it. So members
+   only, and only the edges with BOTH ends inside. */
+function hotGroup(names){
+  var has={}, on = !!(names && names.length);
+  (names||[]).forEach(function(n){ has[n]=1; });
+  Object.keys(nodes).forEach(function(k){
+    nodes[k].g.classList.toggle('dim', on && !has[k]);
+    nodes[k].g.classList.toggle('sel', k===selected);
+  });
+  edges.forEach(function(e){
+    var mine = on && has[e.a] && has[e.b];
+    e.el.classList.toggle('dim', on && !mine);
+    e.el.classList.toggle('hot', mine);
+  });
+  ties.forEach(function(t){
+    [t.el,t.cap].forEach(function(x){ x.classList.toggle('dim', on && !has[t.from]); });
+  });
+}
+
+/* ======================= SPIKE: ZOOM + PAN =======================
+   The shipped map has neither, and they are most of what "Obsidian feel" means
+   beyond the physics. Both drive the same VB the auto-fit used, so there is one
+   camera, not two.                                                           */
+function applyVB(){
+  svg.setAttribute('viewBox', VB.x.toFixed(1)+' '+VB.y.toFixed(1)+' '+
+                              VB.w.toFixed(1)+' '+VB.h.toFixed(1));
+}
+/* Zoom about the CURSOR, not the centre: keeping the point under the pointer
+   fixed is the whole difference between zoom that feels aimed and zoom that
+   feels like it is shoving the map around. */
+svg.addEventListener('wheel', function(ev){
+  ev.preventDefault();
+  VIEW_LOCK = 1;
+  var r = svg.getBoundingClientRect();
+  var fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
+  var ax = VB.x + fx*VB.w, ay = VB.y + fy*VB.h;
+  var f = Math.exp(ev.deltaY * 0.0012);
+  var nw = Math.max(160, Math.min(W*6, VB.w*f));
+  var nh = nw * (VB.h/VB.w);
+  VB.x = ax - fx*nw; VB.y = ay - fy*nh; VB.w = nw; VB.h = nh;
+  applyVB();
+}, {passive:false});
+
+/* Pan on background drag only. `ev.target===svg` is the test: a node's own
+   pointerdown starts a node drag, and without this check the background would
+   pan underneath it at the same time. */
+svg.addEventListener('pointerdown', function(ev){
+  if(ev.target !== svg || (ev.button!=null && ev.button!==0)) return;
+  VIEW_LOCK = 1;
+  var r = svg.getBoundingClientRect();
+  var sx = ev.clientX, sy = ev.clientY, bx = VB.x, by = VB.y, panned = false;
+  svg.classList.add('dragging');
+  function mv(e){
+    if(!panned && Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy) > 3) panned = true;
+    VB.x = bx - (e.clientX-sx) * (VB.w/r.width);
+    VB.y = by - (e.clientY-sy) * (VB.h/r.height);
+    applyVB();
+  }
+  function up(){
+    window.removeEventListener('pointermove',mv);
+    window.removeEventListener('pointerup',up);
+    window.removeEventListener('pointercancel',up);
+    svg.classList.remove('dragging');
+    /* A pan is not a click. Without this, every drag of the background that
+       ended over empty canvas would also drop the pin. */
+    if(panned) suppressClick = true;
+  }
+  window.addEventListener('pointermove',mv);
+  window.addEventListener('pointerup',up);
+  window.addEventListener('pointercancel',up);
+});
+
+/* Give the camera back. Also re-heats the sim, because in free mode a parked
+   loop would otherwise leave the graph frozen at whatever the last frame was. */
+function resetView(){ VIEW_LOCK = 0; kick(1); }
+window.addEventListener('keydown', function(e){
+  if(e.key==='r' || e.key==='R'){ resetView(); }
+});
+
+/* -------------------------------------------------------------------- dates */
+function parseBday(b){
+  if(!b) return null;
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b) || /^(\d{2})-(\d{2})$/.exec(b);
+  if(!m) return null;
+  var mo,da,yr=null;
+  if(m.length===4){ yr=+m[1]; mo=+m[2]; da=+m[3]; } else { mo=+m[1]; da=+m[2]; }
+  var next = new Date(TODAY.getFullYear(), mo-1, da);
+  if(next < TODAY) next = new Date(TODAY.getFullYear()+1, mo-1, da);
+  return {mo:mo, da:da, yr:yr, days: Math.round((next-TODAY)/864e5)};
+}
+function daysSince(iso){
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));
+  if(!m) return null;
+  return Math.round((TODAY - new Date(+m[1],+m[2]-1,+m[3]))/864e5);
+}
+var BUCKET={week:7,month:30,months:90};
+/* cadence is free prose. These are the phrasings actually present; anything
+   else is reported as unscorable rather than guessed at. */
+var CAD=[[/few times a week/i,3],[/once every 2 months|every 2 months/i,60],
+         [/every 1-?2 weeks/i,10],[/every 2 weeks|biweek/i,14],
+         [/once a week|~ ?a week|a week/i,7],[/once a month|monthly|a month/i,30]];
+function cadenceDays(s){
+  if(!s) return null;
+  var best=null;
+  CAD.forEach(function(c){ if(c[0].test(s)) best = best==null?c[1]:Math.min(best,c[1]); });
+  return best;
+}
+
+/* --------------------------------------------------------------------- rail */
+var rail=slot('rail');
+function buildRail(){
+  if(!CHROME.rail || !rail) return;   /* no container: the scoring code stays, unrendered */
+  var items=[], cant=[];
+  PEOPLE.forEach(function(p){
+    if(p.relation==='self') return;
+    var ot=p.open_thread;
+    if(ot && ot.status==='open'){
+      var since=String(ot.since||'').slice(0,10), ds=daysSince(since);
+      items.push({p:p,pri:0,sort:(ds==null?0:-ds),badge:'thread',
+        lab:'open thread', when: ds!=null?(ds===0?'today':ds+'d open'):(ot.since||''),
+        line: String(ot.what).split(/(?<=\.)\s/)[0].slice(0,190)});
+    }
+  });
+  PEOPLE.forEach(function(p){
+    if(p.relation==='self') return;
+    var b=parseBday(p.birthday);
+    if(b && b.days<=30)
+      items.push({p:p,pri:1,sort:b.days,badge:b.days===0?'today':'bday',
+        lab:b.days===0?'birthday today':'birthday',
+        when: b.days===0?'TODAY':'in '+b.days+'d',
+        line: 'Birthday '+String(b.mo).padStart(2,'0')+'-'+String(b.da).padStart(2,'0')+'.'});
+  });
+  PEOPLE.forEach(function(p){
+    if(p.relation==='self') return;
+    if(p.closeness==='family' || p.closeness==='belt') return;
+    /* family is its own thing; belt is OFF the cadence scale by construction --
+       a cadence score says "you should have talked by now", and the belt is
+       exactly the set with no such expectation. Including them would have put
+       37 pendants into the no-score complaint and buried the real misses. */
+    /* v38 added `cadence_days` as "the integer the rail reads" because scoring
+       deviation by KEYWORD-MATCHING A SENTENCE runs on string luck -- and the
+       rail then never read it. It stayed invisible because the only three
+       records carrying both AGREED (3/10/7), so the prose matcher kept
+       producing the right answer from a field nobody consumed. One record
+       is the first disagreement: a numeric cadence beside a prose cadence
+       that matches no pattern, so it read as "no cadence recorded".
+       A FIELD WITH NO CONSUMER IS A COMMENT, exactly as v18 said a rule with
+       no field is. The integer wins; the prose is the fallback; and when both
+       exist and disagree the integrity panel SAYS SO rather than picking one
+       quietly (the v48 ruling on denormalised values). */
+    var cdProse = cadenceDays(p.cadence);
+    var cd = (typeof p.cadence_days === 'number' && p.cadence_days > 0) ? p.cadence_days : cdProse;
+    if(typeof p.cadence_days === 'number' && cdProse != null && cdProse !== p.cadence_days)
+      problems.push({t:'cadence_days disagrees with the cadence prose',
+        d:esc(p.name)+' &mdash; field says <code>'+p.cadence_days+'d</code>, the sentence parses as <code>'
+          +cdProse+'d</code>. The field is being used.'});
+    var lt=p.last_talked;
+    if(!cd || !lt){
+      if(p.closeness) cant.push({p:p,why: !cd?'no cadence recorded':'no last_talked'});
+      return;
+    }
+    /* v30 made `metro` THE GATE, and v66 found it INVERTED IN BOTH DIRECTIONS
+       on two records captured in the same message. One record is same-metro, so
+       the gate refused to score it, although its channel is TEXT -- the one
+       thing the data CAN see. Another is long-distance, which the gate calls
+       readable, and its cadence is IN PERSON, which neither dataset sees.
+       metro was always a PROXY for channel, and `channel` has existed since
+       v13 for exactly this. Read the field when the record has one; fall back
+       to metro only when it does not. `group_setting` is deliberately NOT
+       remote: a group-conducted friendship must never be scored against a
+       dyadic baseline (v16, Nam Thai). Kyuwon's own metro decides what "same
+       metro" means -- this was the literal string 'Austin'.              */
+    var ch = p.channel || [];
+    var remote = ch.length
+      ? ch.some(function(c){ return c==='text'||c==='voice'||c==='online_shared_activity'; })
+      : p.metro !== SELF.metro;
+    if(!remote){
+      cant.push({p:p, why: ch.length
+        ? 'channel is '+ch.join(' + ')+' — neither dataset can see it'
+        : (p.metro||'metro unknown')+' — same metro as him, in-person channel, no remote signal'});
+      return;
+    }
+    var since=daysSince(lt), approx=false;
+    if(since==null){ var b=BUCKET[String(lt).toLowerCase()];
+      if(b==null){ cant.push({p:p,why:'last_talked not a date or known bucket'}); return; }
+      since=b; approx=true; }
+    var ratio=since/cd;
+    if(ratio<1.4){ cant.push({p:p,why:'within cadence ('+since+'d vs ~'+cd+'d'+(approx?', approx':'')+')'}); return; }
+    items.push({p:p,pri:2,sort:-ratio,badge:'cad',lab:'cadence drift',
+      when: ratio.toFixed(1)+'×',
+      line:'Last talked '+since+'d ago'+(approx?' (bucket, approximate)':'')+
+           ' against a ~'+cd+'d cadence. '+(p.metro||'')+' — long-distance, so the text channel is the real one.'});
+  });
+
+  items.sort(function(a,b){ return a.pri-b.pri || a.sort-b.sort || a.p.name.localeCompare(b.p.name); });
+
+  var h='<h2>Check-in rail &middot; '+items.length+'</h2>';
+  if(!items.length) h+='<div class="empty">Nothing needs attention today.</div>';
+  items.forEach(function(it){
+    var r=it.p.closeness||'none';
+    h+='<button class="ri" data-n="'+esc(it.p.name)+'">'
+      +'<span class="r1"><span class="nm">'+esc(it.p.name)+'</span>'
+      +'<span class="ring '+r+'">'+(it.p.closeness||'no ring')+'</span>'
+      +'<span class="when">'+esc(it.when)+'</span></span>'
+      +'<span class="r2"><span class="badge b-'+it.badge+'">'+esc(it.lab)+'</span> '+esc(it.line)+'</span>'
+      +'</button>';
+  });
+  var noRing=PEOPLE.filter(function(p){return p.relation==='friend'&&!p.closeness;}).length;
+  var ringedN=PEOPLE.filter(function(p){return p.closeness && p.closeness!=='family'
+                                        && p.closeness!=='belt';}).length;
+  /* Both sentences below are guarded on an EMPTY list. A count of 0 followed by a
+     colon and nothing after it reads as a broken page, not as good news -- and the
+     integrity panel's twin of this sentence was guarded at v53 while this one was
+     left, which is this project's own recurring defect: a fix scoped to the single
+     instance in front of me. Fixed here as a pair, deliberately. */
+  h+='<div class="cant"><b>What this rail cannot score, stated rather than hidden.</b><br>'
+    + (cant.length
+        ? cant.length+' of '+ringedN+' ringed people have no cadence score: '
+          + cant.map(function(c){return esc(c.p.name)+' ('+c.why+')';}).join(' &middot; ')+'.'
+        : '<b>Every ringed person has a cadence score.</b>')
+    + '<br>'+(noRing
+        ? noRing+(noRing===1?' friend has':' friends have')+' no ring yet, so '
+          +(noRing===1?'they are':'they are')+' absent from the rail entirely.'
+        : '<b>Every friend has a ring, so nobody is missing from this rail.</b>')
+    + '<br><b>Birthdays only surface inside 30 days</b>, and this axis may be redundant '
+    + '&mdash; he already schedules these himself.</div>';
+  rail.innerHTML=h;
+  Array.prototype.forEach.call(rail.querySelectorAll('.ri'),function(b){
+    b.onclick=function(){ select(b.getAttribute('data-n')); };
+  });
+}
+
+/* --------------------------------------------------------------------- card */
+var card=slot('card');
+var NULLMEAN={named:'a roster name',none_met_directly:'asked &mdash; met directly, there is no introducer',
+  exists_unnamed_withheld:'asked &mdash; an introducer exists, and the name is withheld by his choice',
+  not_asked:'not asked'};
+function row(k,v,cls){ return v==null||v===''||(Array.isArray(v)&&!v.length)?'':
+  '<dt>'+k+'</dt><dd'+(cls?' class="'+cls+'"':'')+'>'+v+'</dd>'; }
+function select(n){
+  selected = (selected===n)?null:n;
+  hot(selected);          /* highlight still works with no card */
+  syncPanelSel();
+  if(!CHROME.card || !card) return;
+  if(!selected){ card.innerHTML=''; return; }
+  var p=byName[n]; if(!p) return;
+  var r=p.closeness||'none';
+  var h='<div class="hd"><h2>'+esc(p.name)+'</h2>'
+    +'<span class="ring '+r+'">'+(p.closeness||'ring not asked')+'</span>';
+  if(p.relation!=='friend' && p.relation!==p.closeness) h+='<span class="pill">'+esc(p.relation)+'</span>';
+  if(p.capture_status!=='captured') h+='<span class="pill nom">'+esc(p.capture_status||'?')+'</span>';
+  h+='<button class="x" id="cx">close</button></div>';
+
+  var ot=p.open_thread;
+  if(ot){
+    h+='<div class="sect"><div class="thread"><div class="t1">open thread'
+      +(ot.status==='open'?'':' &mdash; '+esc(ot.status))
+      +(ot.since?' &middot; since '+esc(ot.since):'')+'</div>'+esc(ot.what)
+      +(ot.needs_followup?'<div class="prov">Needs follow-up.</div>':'')+'</div></div>';
+  }
+
+  h+='<div class="sect"><h3>His judgment</h3><dl class="kv">';
+  h+=row('closeness', p.closeness? esc(p.closeness)+(p.closeness_note?'<div class="prov">'+esc(p.closeness_note)+'</div>':'') : '<span style="color:var(--ink3)">not asked</span>');
+  h+=row('circle', (p.circle||[]).map(function(c){return '<span class="pill">'+esc(c)+'</span>';}).join(''));
+  h+=row('nominal circle', (p.circle_nominal||[]).map(function(c){
+      return '<span class="pill nom">'+esc(c)+' &mdash; affiliation only</span>';}).join(''));
+  h+=row('cadence', p.cadence?esc(p.cadence):null,'prose');
+  h+=row('channel', (p.channel||[]).map(function(c){return '<span class="pill">'+esc(c)+'</span>';}).join(''));
+  h+='</dl></div>';
+
+  h+='<div class="sect"><h3>Facts</h3><dl class="kv">';
+  h+=row('metro', p.metro?esc(p.metro):null);
+  h+=row('city', (p.city&&p.city!==p.metro)?esc(p.city):null);
+  h+=row('live now', p.live_now?esc(p.live_now)+(p.live_now_asof?'<div class="prov">as of '+esc(p.live_now_asof)+'</div>':''):null,'prose');
+  h+=row('birthday', p.birthday?esc(p.birthday)+(function(){var b=parseBday(p.birthday);
+      return b?' <span style="color:var(--ink3)">('+(b.days===0?'today':'in '+b.days+' days')+')</span>':'';})():null);
+  h+=row('met where', p.met_where?esc(p.met_where)+(p.met_where_affiliating?' <span class="pill">member</span>':''):null);
+  h+=row('met when', p.met_when?esc(p.met_when):null);
+  h+=row('met online', p.met_online?esc(p.met_online):null);
+  h+=row('co-attended', (p.co_attended||[]).map(function(c){return '<span class="pill">'+esc(c)+'</span>';}).join(''));
+  h+=row('last talked', p.last_talked?esc(p.last_talked)+(p.last_talked_how?' &middot; '+esc(p.last_talked_how):''):null);
+  h+=row('partner of', p.partner_of?esc(p.partner_of):null);
+  h+='</dl></div>';
+
+  h+='<div class="sect"><h3>Origin of the friendship</h3><dl class="kv">';
+  h+=row('introduced by', p.introduced_by?esc(p.introduced_by):
+      '<span style="color:var(--ink3)">none recorded</span>');
+  /* introduced_by_status exists (v37) to say WHICH OF FOUR THINGS AN EMPTY FIELD MEANS.
+     So it is only shown when the field IS empty. Printing "null means: a roster name"
+     under a named introducer -- which this did for every populated record -- is a
+     caption answering a question the record does not raise. */
+  if(!p.introduced_by)
+    h+=row('what the blank means', '<span style="color:var(--ink2)">'
+      +(NULLMEAN[p.introduced_by_status]||'status not set')+'</span>');
+  h+=row('context', p.introduced_context?esc(p.introduced_context):null,'prose');
+  h+=row('closer since', p.closer_since?esc(p.closer_since):null,'prose');
+  h+='</dl></div>';
+
+  if((p.highlights||[]).length){
+    h+='<div class="sect"><h3>Highlights &mdash; his, never inferred</h3><dl class="kv">';
+    (p.highlights||[]).forEach(function(hl){
+      h+=row(esc(hl.date||hl.when||'&mdash;'), esc(hl.what)
+        + ((hl['with']||[]).length?'<div class="prov">with '+hl['with'].map(esc).join(', ')+'</div>':''),'prose');
+    });
+    h+='</dl></div>';
+  }
+
+  var myE = edges.filter(function(e){ return e.a===p.name||e.b===p.name; });
+  var myT = ties.filter(function(t){ return t.from===p.name; });
+  h+='<div class="sect"><h3>Edges &mdash; derived, '+myE.length+'</h3><dl class="kv">';
+  if(myE.filter(function(e){return e.kind!=='kyuwon'&&e.kind!=='family';}).length===0)
+    h+=row('&mdash;','<b>No edges but Kyuwon.</b> No circle, no introducer, no shared highlight &mdash; and still '
+      +(p.relation==='family' ? 'family. That is what the centre node is for.'
+                              : 'a real friend. That is what the centre node is for.'),'prose');
+  ['highlight','intro','partner','circle','manual','family','kyuwon'].forEach(function(k){
+    var es=myE.filter(function(e){return e.kind===k;});
+    if(!es.length) return;
+    h+=row(k==='intro'?'introduced':k, es.map(function(e){
+      var other = e.a===p.name?e.b:e.a;
+      if(e.kind==='intro')
+        return '<span style="color:var(--ink3)">Kyuwon met '
+               +(e.a===p.name?esc(other)+' through '+esc(p.name):esc(p.name)+' through '+esc(other))
+               +'</span>';
+      return esc(other)+'<span style="color:var(--ink3)"> &middot; '+esc(e.why.join('; '))+'</span>';
+    }).join('<br>'),'prose');
+  });
+  myT.forEach(function(t){ h+=row(t.kind==='stub'?'withheld':'nominal tie','<span style="color:var(--ink2)">'+t.why+'</span>','prose'); });
+  h+='</dl></div>';
+
+  if(p.read||p.tell){
+    h+='<div class="sect"><h3>From the IG export &mdash; provisional, not his words</h3><dl class="kv">';
+    h+=row('read', p.read?esc(p.read):null,'prose');
+    h+=row('tell', p.tell?esc(p.tell):null,'prose');
+    h+='</dl><div class="prov">Derived from the DM export. The export has been wrong about closeness '
+      +'repeatedly; these are reading notes, not judgments.</div></div>';
+  }
+  if(p.notes){
+    h+='<div class="sect"><h3>Capture notes</h3><dl class="kv">'
+      +row('notes',esc(p.notes),'prose')+'</dl></div>';
+  }
+  card.innerHTML=h;
+  document.getElementById('cx').onclick=function(){ select(n); };
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ------------------------------------------------------------- circles panel
+   The cluster names used to be drawn on the canvas, where they were the widest
+   thing on it, collided with the people they named, and still could not carry a
+   roster. Off the map each one brings its members with it, and hovering a name
+   is the only way to ask "who is in this" without reading nine labels.        */
+var panelEl = slot('panel');
+function memberRowsFor(key){
+  return PEOPLE.filter(function(p){ return (p.circle||[]).indexOf(key) >= 0; })
+               .sort(function(a,b){ return a.name.localeCompare(b.name); });
+}
+function ringColor(r){
+  return r ? 'var(--'+(r==='family'?'fam':r)+')' : 'var(--none)';
+}
+function buildPanel(){
+  if(!CHROME.panel || !panelEl) return;
+  panelEl.textContent='';
+  var inAny = {};
+  CIRCLE_KEYS.forEach(function(key){
+    var mem = memberRowsFor(key);
+    if(!mem.length) return;
+    var names = mem.map(function(p){ return p.name; });
+    names.forEach(function(n){ inAny[n]=1; });
+
+    var box = document.createElement('div');
+    box.className = 'cgroup';
+
+    var head = document.createElement('button');
+    head.type='button'; head.className='chead';
+    head.innerHTML = esc(key.toUpperCase())+' <span class="n">'+mem.length+'</span>';
+    head.setAttribute('aria-label','Highlight the '+key+' circle, '+mem.length+' people');
+    /* Hover AND focus, so the keyboard reaches the same thing the mouse does. */
+    ['mouseenter','focus'].forEach(function(ev){
+      head.addEventListener(ev, function(){ head.classList.add('on'); hotGroup(names); });
+    });
+    ['mouseleave','blur'].forEach(function(ev){
+      head.addEventListener(ev, function(){ head.classList.remove('on'); hot(selected); });
+    });
+    box.appendChild(head);
+
+    mem.forEach(function(p){
+      var row = document.createElement('button');
+      row.type='button'; row.className='cmem'; row.dataset.name=p.name;
+      var ring = p.closeness || 'ring not asked';
+      row.innerHTML = '<span class="dot" style="background:'+ringColor(p.closeness)+'"></span>'
+                    + '<span class="nm">'+esc(p.name)+'</span>';
+      row.title = p.name+' \u2014 '+ring;
+      row.setAttribute('aria-label', p.name+', '+ring);
+      ['mouseenter','focus'].forEach(function(ev){
+        row.addEventListener(ev, function(){ hot(p.name); });
+      });
+      ['mouseleave','blur'].forEach(function(ev){
+        row.addEventListener(ev, function(){ hot(selected); });
+      });
+      row.addEventListener('click', function(){ select(p.name); });
+      box.appendChild(row);
+    });
+    panelEl.appendChild(box);
+  });
+
+  /* Said, not listed. Naming the count keeps the panel honest about the roster
+     without turning a circle index into a 48-name scroll. */
+  var loose = PEOPLE.filter(function(p){
+    return p.relation!=='self' && !inAny[p.name];
+  }).length;
+  if(loose){
+    var f=document.createElement('p');
+    f.className='cnone';
+    f.innerHTML='<b>'+loose+'</b> more people belong to no named circle. '
+               +'They are on the map, tied to you.';
+    panelEl.appendChild(f);
+  }
+}
+function syncPanelSel(){
+  if(!panelEl) return;
+  var rows = panelEl.querySelectorAll('.cmem');
+  for(var i=0;i<rows.length;i++)
+    rows[i].classList.toggle('sel', rows[i].dataset.name===selected);
+}
+buildPanel();
+
+/* ---- click anywhere to drop a pin ---------------------------------------
+   Only when the pointer did NOT travel: the background is also the pan handle,
+   and a pan that ends on empty canvas is not a request to clear the selection. */
+svg.addEventListener('click', function(ev){
+  if(suppressClick){ suppressClick=false; return; }
+  if(ev.target === svg) deselect();
+});
+panelEl && panelEl.addEventListener('click', function(ev){
+  if(ev.target === panelEl) deselect();
+});
+window.addEventListener('keydown', function(ev){
+  if(ev.key === 'Escape') deselect();
+});
+
+/* ------------------------------------------------------------------ chrome */
+(function(){
+  var rings={inner:0,solid:0,orbit:0,family:0,belt:0};
+  PEOPLE.forEach(function(p){ if(p.closeness) rings[p.closeness]++; });
+  document.getElementById('meta').innerHTML =
+    PEOPLE.length+' people &middot; '
+    +(rings.inner+rings.solid+rings.orbit)+' ringed ('+rings.inner+' inner / '+rings.solid
+    +' solid / '+rings.orbit+' orbit) &middot; '+rings.belt+' belt &middot; '+rings.family+' family';
+
+  if(CHROME.legend && slot('legend')) slot('legend').innerHTML =
+    ['<span><i class="sw" style="background:var(--inner)"></i>inner</span>',
+     '<span><i class="sw" style="background:var(--solid)"></i>solid</span>',
+     '<span><i class="sw" style="border:2px solid var(--orbit);background:var(--bg)"></i>orbit</span>',
+     '<span><i class="sw" style="border:1px solid var(--belt);background:var(--bg)"></i>belt</span>',
+     '<span><i class="sw" style="border:1.4px dashed var(--none)"></i>ring not asked</span>',
+     '<span><i class="sw sq" style="background:var(--fam)"></i>family</span>',
+     '<span><i style="border-top-color:var(--e-hl)"></i>shared highlight</span>',
+     '<span><i style="border-top-color:var(--e-intro)"></i>introduced (directional)</span>',
+     '<span><i style="border-top-color:var(--e-circle)"></i>same circle</span>',
+     '<span><i style="border-top-color:var(--e-partner);border-top-width:3px"></i>partners</span>',
+     '<span><i style="border-top-color:var(--e-manual);border-top-style:dashed"></i>manual link</span>',
+     '<span><i style="border-top-color:var(--e-kyuwon)"></i>knows Kyuwon (everyone)</span>',
+     '<span><i style="border-top-color:var(--e-nominal);border-top-style:dotted"></i>nominal / withheld</span>'
+    ].join('');
+
+  var noRing=PEOPLE.filter(function(p){return p.relation==='friend'&&!p.closeness;});
+  var fam=PEOPLE.filter(function(p){return p.closeness==='family';});
+  var noMetro=PEOPLE.filter(function(p){return p.relation!=='self'&&!p.metro;});
+  var pend=PEOPLE.filter(function(p){return p.capture_status==='pending';});
+  var part=PEOPLE.filter(function(p){return p.capture_status==='captured_partial';});
+  var ec={}; edges.forEach(function(e){ ec[e.kind]=(ec[e.kind]||0)+1; });
+
+  var h='';
+  h+='<p><b>Unresolved names in highlight rosters:</b> '
+    +(unresolved.length? '<span class="bad">'+unresolved.length+'</span><ul>'
+        +unresolved.map(function(u){return '<li>'+esc(u.who)+'’s “'+esc(u.what)+'” names <code>'
+        +esc(u.name)+'</code>, who is not in the roster and has no entry in <code>_schema.aliases</code>.</li>';}).join('')
+        +'</ul>' : '<span class="ok">none</span> — all rosters resolve to roster keys.')+'</p>';
+  if(problems.length){
+    h+='<p><b class="bad">Grouping-key violations:</b><ul>'
+      +problems.map(function(p){return '<li>'+esc(p.t)+': '+p.d+'</li>';}).join('')+'</ul></p>';
+  } else {
+    h+='<p><b>Grouping keys:</b> <span class="ok">clean</span> — every <code>circle</code> value is a key in '
+      +'<code>_schema.circles</code> and every <code>metro</code> is a bare metro name. '
+      +'Four prose-polluted keys were removed at v37; the renderer groups by string equality, so a parenthetical '
+      +'silently forks a cluster.</p>';
+  }
+  h+='<p><b>Every node connects to Kyuwon</b>, because the roster is by construction people he knows &mdash; '
+    +'his ruling, 2026-10-13. It is drawn as the faintest line on the canvas on purpose: <b>a universal edge is a '
+    +'constant, so it discriminates nothing.</b> It is here because its <i>absence</i> lied &mdash; it used to be '
+    +'drawn only for pendants and family, which made 20 people look unconnected to him. '
+    +'<b>&ldquo;Pendant&rdquo; now means zero edges OTHER than his</b>, and '+pendants.length+' '
+    +(pendants.length===1?'person is':'people are')+' in that position: '
+    +(pendants.map(esc).join(', ')||'none')+'.</p>';
+  var exc = SCHEMA.edge_exclusions||[];
+  if(exc.length)
+    h+='<p><b>Edges he has removed by hand</b> ('+exc.length+'): '
+      +exc.map(function(x){ return '<code>'+x.pair.map(esc).join(' &ndash; ')+'</code>'; }).join(', ')
+      +'. The derived model built these from a shared highlight and he says the friendship is not there &mdash; '
+      +'both were at the event because they each came with him. <b>The highlight rosters are unchanged; only the '
+      +'edge is suppressed.</b> A removed edge is invisible by definition, so it is listed here rather than '
+      +'silently dropped.</p>';
+  h+='<p><b>Edges by source</b> ('+edges.length+' total, all derived — none hand-drawn): '
+    +Object.keys(ec).sort().map(function(k){return '<code>'+k+'</code> '+ec[k];}).join(' &middot; ')+'.</p>';
+  h+='<p><b>Family is its own ring</b> ('+fam.length+'), not a reading on the inner/solid/orbit scale &mdash; '
+    +'his instruction. They had been sitting at a NULL closeness, where null means <i>not asked</i>, while theirs '
+    +'meant <i>not applicable</i>. <b>An empty cell is a claim; ask what it asserts before queuing work to fill '
+    +'it.</b></p>';
+  h+='<p><b>Coverage.</b> '
+    +(noRing.length
+      ? noRing.length+' friends have no ring, so the map draws them hollow and dashed and the rail cannot see '
+        +'them: '+noRing.map(function(p){return esc(p.name);}).join(', ')+'. '
+      : '<b>Every friend on the map has a ring.</b> ')
+    +noMetro.length+' have no metro and sit in the “metro not asked” cluster in the Cities layout. '
+    +pend.length+' records are <code>pending</code> and '+part.length+' are <code>captured_partial</code>.</p>';
+  h+='<p><b>What this page deliberately does not show.</b> Message volume and call minutes are in '
+    +'<code>_schema._analysis</code> and off the map at his instruction. They never drive a position, a size, an '
+    +'order, or a ring — and the controlled pair is why: two people in the same circle, twenty messages apart in '
+    +'volume, sit two rings apart.</p>';
+  h+='<p><b>Known gaps in this renderer, named so they are not mistaken for passes.</b></p><ul>'
+    +'<li><code>cadence</code> is free prose, keyword-matched to an interval. Any phrasing the matcher does not '
+    +'recognise is reported in the rail as unscorable rather than scored at a guess.</li>'
+    +'<li><code>channel</code> is captured but not yet used in scoring; the rail gates on <code>metro</code> only.</li>'
+    +'<li>Open threads have no expiry. The rail shows days-open so a stale one is visible, but nothing ages it out '
+    +'— that was flagged at v12 as a person problem, not a code one.</li>'
+    +'<li>Nominal membership and a withheld introducer are drawn as ties into empty space, never as nodes. '
+    +'A missing stub would look identical to “met directly”, and those are different facts.</li></ul>';
+  if(CHROME.integrity && slot('integBody')) slot('integBody').innerHTML=h;
+})();
+
+buildRail();
+})();
+</script>
+</body>
+</html>
