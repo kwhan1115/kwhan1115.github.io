@@ -8,7 +8,7 @@ export const EXAMS = [
   { name: "Exam 1 · Probability",    status: "passed",     tier: "ACAS" },
   { name: "Exam 2 · Financial Math", status: "passed",     tier: "ACAS" },
   { name: "MAS-I",                   status: "passed",     tier: "ACAS" },
-  { name: "MAS-II",                  status: "scheduled",  tier: "ACAS", note: "Studying", date: "Sitting Oct" },
+  { name: "MAS-II",                  status: "waiting",    tier: "ACAS", date: "Taken Oct 29" },
   { name: "Exam 5",                  status: "notStarted", tier: "ACAS" },
   { name: "Exam 6",                  status: "notStarted", tier: "ACAS" },
   { name: "Exam 7",                  status: "notStarted", tier: "FCAS" },

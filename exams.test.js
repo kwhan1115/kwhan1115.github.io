@@ -110,15 +110,15 @@ test("a sat-but-unmarked exam reads as waiting for results", () => {
   assert.doesNotMatch(html, /Up next|Scheduled/);
 });
 
-// A retake is a scheduled exam with a study note: the row must say what he is
-// doing now ("Studying") and when it lands, and must not creep into the count.
-test("MAS-II is a retake in progress, not a cleared exam", () => {
+// Attempt 3 was sat on 29 Oct 2026; the CAS holds results ~3 weeks. The row must
+// say it has been sat, and must still not creep into the cleared count.
+test("MAS-II is sat and awaiting results, not a cleared exam", () => {
   const mas2 = EXAMS.find((e) => e.name === "MAS-II");
-  assert.equal(mas2.status, "scheduled");
+  assert.equal(mas2.status, "waiting");
   const html = examRowHTML(mas2);
-  assert.match(html, /rec--scheduled/);
-  assert.match(html, /Studying/);
-  assert.match(html, /Sitting Oct/);
+  assert.match(html, /rec--waiting/);
+  assert.match(html, /Waiting for results/);
+  assert.match(html, /Taken Oct 29/);
   assert.equal(computeSummary(EXAMS).passed, 3);
 });
 

@@ -43,7 +43,7 @@ Opened primarily on mobile from a social profile link. Static site served by Git
 ## Evidence on Hand
 
 - Photos: `assets/photo1.jpg` (full hoodie shot), `assets/photo2.jpg` (street convex-mirror w/ film camera), `assets/photo3.jpg` (science-museum), `photo4`–`photo9` (friends), `music-hiromi.jpg`. Real, his own. `assets/avatar.jpg` is still in the repo but no longer on the page.
-- Exam record (real): CAS track — Exam 1 (Probability) ✓, Exam 2 (Financial Math) ✓, MAS-I ✓ passed; MAS-II up next; Exams 5, 6 (finish ACAS), Exams 7, 8, 9 (finish FCAS) remaining. First 6 = ACAS (Associate), all 9 = FCAS (Fellow). 3 of 9 passed.
+- Exam record (real): CAS track — Exam 1 (Probability) ✓, Exam 2 (Financial Math) ✓, MAS-I ✓ passed; MAS-II sat 2026-10-29 (attempt 3), awaiting results; Exams 5, 6 (finish ACAS), Exams 7, 8, 9 (finish FCAS) remaining. First 6 = ACAS (Associate), all 9 = FCAS (Fellow). 3 of 9 passed.
 - Music: plays piano, percussion, a bit of drums, guitar, bass. Favorite musicians (verbatim): Hiromi Uehara, Erroll Garner, Bill Evans, Anomalie, insaneintherain. (Nikolai Kapustin removed 2026-08-19 at his request.) Spotify: `open.spotify.com/user/kwhan1115`.
 - Food obsessions (verbatim): Chi Forest, Fruit Riot, Matcha Binch, Mike's Chicken, Mister O1's Extraordinary Pizza, Cruntin Crunchball Protein Shake, Costco Chicken Bake, Fresh Bowl's Mi Quang, Taco Bell Luxe Box.
 - Links: GitHub `github.com/kwhan1115`, Instagram `@kwhan1115`, Email `kwhan1115@gmail.com`, Spotify (above).
