@@ -197,6 +197,43 @@ a { color: inherit; }
 }
 .topbar__ind.is-on { opacity: 1; }
 
+/* Friend map — a quiet way out of the page, sitting past the nav behind a
+   hairline so it reads as a utility rather than a seventh section. The mark
+   does the identifying work, which is what lets the label go at narrow
+   widths where the six section names already need every pixel. */
+.topbar__map {
+  flex: none; align-self: stretch; position: relative;
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding-left: 1rem;
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .03em;
+  white-space: nowrap; text-decoration: none; color: var(--muted);
+  transition: color .2s ease;
+}
+/* Stretching to the full 52px topbar gives a real tap target behind a 15px
+   mark; the divider stays short on a pseudo-element so the hit area can grow
+   without the hairline growing with it. */
+.topbar__map::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 1px; height: 18px; margin-top: -9px; background: var(--line);
+}
+.topbar__map svg {
+  width: 15px; height: 15px; flex: none;
+  transition: transform .25s var(--ease);
+}
+.topbar__map:hover, .topbar__map:focus-visible { color: var(--plum); }
+.topbar__map:hover svg, .topbar__map:focus-visible svg { transform: rotate(-8deg) scale(1.12); }
+/* The accessible name lives on the anchor's aria-label, so dropping the
+   text costs nothing to a screen reader. */
+/* Below 560 the six section names need every pixel and the bar is sparse
+   enough that the hairline has nothing left to separate from: the name is
+   already gone. Dropping the divider and its padding puts the link at 15px of
+   mark, which costs the nav less room than a seventh section name would have. */
+@media (max-width: 560px) {
+  .topbar__map span { display: none; }
+  .topbar__map { gap: 0; padding-left: 0; margin-left: -.45rem; }
+  .topbar__map::before { display: none; }
+}
+
 /* ================================================================
    Waveform progress — the page drawn as audio, and draggable to seek
    ================================================================ */
