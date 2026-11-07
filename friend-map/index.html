@@ -778,19 +778,38 @@ function cityLayout(groups, groupOf, homeKey){
   }
   blocks.forEach(size);
   /* home metro first -- it gets the top left -- then biggest first, which is
-     what every packer wants and also reads correctly: the big cities lead. */
-  blocks.sort(function(a,b){
-    if(a.key===homeKey) return -1;
-    if(b.key===homeKey) return 1;
-    return (b.w*b.h - a.w*a.h) || (b.k-a.k) || (a.key<b.key?-1:1);
-  });
+     what every packer wants and also reads correctly: the big cities lead.
+     IT IS A FUNCTION BECAUSE IT HAS TO RUN AGAIN. The widen loop below resizes
+     blocks, and a resized block is no longer where this order put it; sorting
+     once was one of the three reasons v90 collapsed. */
+  function resort(){
+    blocks.sort(function(a,b){
+      if(a.key===homeKey) return -1;
+      if(b.key===homeKey) return 1;
+      return (b.w*b.h - a.w*a.h) || (b.k-a.k) || (a.key<b.key?-1:1);
+    });
+  }
+  resort();
 
-  /* GUILLOTINE FREE-RECTANGLE PACKING, and the one-pass shelf it replaces is
-     why. Shelves spend a whole row's height on that row's tallest block:
-     Austin and DFW are 476 and 544 wide, so they fill the width, and the
-     eleven small metros were pushed into rows of their own below. Free rects
-     let a one-person city use the 128px strip beside a 546-tall block, which
-     is the difference between fitting in 872 and not fitting at all. */
+  /* FREE-RECTANGLE PACKING, AND THE SPLIT HAD TO BE THE OTHER KIND ----------
+     The one-pass shelf this replaced spent a whole row's height on that row's
+     tallest block: Austin and DFW are 477 and 544 wide, so they filled the
+     width, and the eleven small metros were pushed into rows of their own
+     below. The note here used to say "free rects let a one-person city use the
+     128px strip beside a 546-tall block". THEY DID NOT. The split was a
+     guillotine split -- it kept a right-hand rect only as tall as the block
+     just placed, and a below rect the full width of the parent -- so the strip
+     BESIDE a tall block, the one this note is about, was discarded with the
+     parent rect. Austin 477x674 and DFW 544x546 sit side by side inside 1212
+     with room to spare and the packer still could not place a 238x226 block,
+     from v86 onward. The comment described the intent; the arithmetic in the
+     code was a different algorithm.
+     WHAT IT DOES NOW: subtract the placed block -- inflated by ONE gutter on
+     each side, so the gap between two plates comes out at exactly GX/GY, not
+     double -- from every free rect it overlaps, keep the up-to-four
+     remainders, and drop any rect contained in another. Measured on v94: 13
+     blocks, 0 unplaced, 0 plate overlaps, widest block 544, and the widen loop
+     below does not have to run at all. */
   function pack(){
     var free=[{x:M,y:M,w:AW,h:AH}], bad=0;
     blocks.forEach(function(b){
@@ -802,11 +821,28 @@ function cityLayout(groups, groupOf, homeKey){
         if(s < bs){ bs=s; best=i; }
       }
       if(best < 0){ bad++; b.x=M; b.y=M; return; }        /* reported, not hidden */
-      var f=free[best];
-      b.x=f.x; b.y=f.y;
-      free.splice(best,1);
-      if(f.w - b.w - GX > 0) free.push({x:f.x+b.w+GX, y:f.y, w:f.w-b.w-GX, h:b.h});
-      if(f.h - b.h - GY > 0) free.push({x:f.x, y:f.y+b.h+GY, w:f.w, h:f.h-b.h-GY});
+      b.x=free[best].x; b.y=free[best].y;
+      var ox=b.x-GX, oy=b.y-GY, ow=b.w+2*GX, oh=b.h+2*GY, keep=[];
+      free.forEach(function(f){
+        if(f.x >= ox+ow || ox >= f.x+f.w || f.y >= oy+oh || oy >= f.y+f.h){ keep.push(f); return; }
+        if(oy > f.y)        keep.push({x:f.x,   y:f.y,    w:f.w,                 h:oy-f.y});
+        if(oy+oh < f.y+f.h) keep.push({x:f.x,   y:oy+oh,  w:f.w,                 h:f.y+f.h-(oy+oh)});
+        if(ox > f.x)        keep.push({x:f.x,   y:f.y,    w:ox-f.x,              h:f.h});
+        if(ox+ow < f.x+f.w) keep.push({x:ox+ow, y:f.y,    w:f.x+f.w-(ox+ow),     h:f.h});
+      });
+      free = keep.filter(function(f){ return f.w>0 && f.h>0; });
+      /* a rect wholly inside another is noise, and it is the candidate search
+         above that pays for it -- the smaller one always scores better on
+         (f.w-b.w)+(f.h-b.h) and would win a seat it has no business winning. */
+      for(var pi=0; pi<free.length; pi++){
+        for(var pj=0; pj<free.length; pj++){
+          if(pi===pj) continue;
+          var a=free[pi], c=free[pj];
+          if(a.x>=c.x && a.y>=c.y && a.x+a.w<=c.x+c.w && a.y+a.h<=c.y+c.h){
+            free.splice(pi,1); pi--; break;
+          }
+        }
+      }
     });
     return bad;
   }
@@ -815,13 +851,42 @@ function cityLayout(groups, groupOf, homeKey){
      rows -- and pack again. Terminates at cols===k, and it is the same move
      GRID_MIN already stands for: above some size a shape cannot hold its
      labels, so change the shape rather than pick a new number. This is what
-     keeps the layout honest at 120 records without anyone editing it. */
+     keeps the layout honest at 120 records without anyone editing it.
+     ---- THREE GUARDS, AND v90 IS WHY ------------------------------------
+     On 2026-11-03 Austin went 31 -> 37 and this loop turned ONE unplaced
+     6-person block into TWO UNPLACED BLOCKS HOLDING 68 OF 89 PEOPLE, both
+     dumped at (M,M) on top of each other and on five other plates. The loop
+     was a ratchet: width only ever grows, nothing compared it to the field,
+     and the LAST state won rather than the best one. It ground Austin to 37
+     columns -- 4410px wide inside a 1212px field, a block no packer can place
+     by construction -- and stopped only when no block had a second row left to
+     flatten. Note what it walked past on the way: at iteration 2 only DFW was
+     unplaced, at iteration 7 only the 6-person block was. It had better
+     answers in hand and kept going.
+       (a) never widen a block past the field. AW is a hard wall; wider than
+           the wall is unplaceable however the packer tries, so the increment
+           is refused and the next-tallest block is widened instead.
+       (b) re-sort after every resize. Biggest-first is the premise the packer
+           is built on, and a widened block is no longer in its place.
+       (c) keep the best configuration seen and restore it at the end. A
+           repack can be worse than the one before it; without this the worst
+           attempt is what ships. */
+  function snap(){ var m={}; blocks.forEach(function(b){ m[b.key]=b.cols; }); return m; }
+  var best={bad:bad, cols:snap()};
   while(bad && guard++ < 80){
     var tall=null;
     blocks.forEach(function(b){
-      if(b.rows>1 && b.cols<b.k && (!tall || b.h>tall.h)) tall=b; });
+      if(b.rows<=1 || b.cols>=b.k) return;
+      if((b.cols+1)*b.cw > AW) return;                       /* (a) */
+      if(!tall || b.h>tall.h) tall=b; });
     if(!tall) break;
-    tall.cols++; size(tall); bad=pack();
+    tall.cols++; size(tall); resort();                       /* (b) */
+    bad=pack();
+    if(bad < best.bad) best={bad:bad, cols:snap()};          /* (c) */
+  }
+  if(best.bad < bad){
+    blocks.forEach(function(b){ b.cols=best.cols[b.key]; size(b); });
+    resort(); bad=pack();
   }
   if(bad) console.warn('cityLayout: '+bad+' metro block(s) could not be placed');
 
